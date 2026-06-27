@@ -139,7 +139,7 @@
    ============================================================ */
 
 const PROXY_BASE = 'https://nsl-proxy.haydenmterjeson.workers.dev/?url=';
-const FETCH_TIMEOUT_MS = 8000; // Faster timeout so dead URLs don't hang the fetch
+const FETCH_TIMEOUT_MS = 8000; 
 const MAX_AGE_MS = 6 * 30.44 * 24 * 60 * 60 * 1000; 
 
 // Aggressive filter to keep out mega-cap market news
@@ -153,29 +153,40 @@ function isStockNoise(a) {
   return STOCK_NOISE_TERMS.filter(t => blob.includes(t)).length >= 2;
 }
 
-// Google News RSS is far superior to Bing for niche volume. 
-// Syntax allows for exact phrases and OR operators.
 const FEEDS = [
   {
     id: 'cleantech', label: 'Clean Tech & Renewables', color: '#2A9D8F', bg: '#E4F4F2',
     sources: [
-      { type: 'gnews', query: '("climate tech" OR "clean tech" OR "decarbonization") AND ("seed round" OR "startup" OR "raises" OR "series a")' },
-      { type: 'gnews', query: '("renewable energy" OR "grid tech" OR "solar startup") AND ("funding" OR "raises" OR "stealth")' }
+      { type: 'gnews', query: '"climate tech" startup' },
+      { type: 'gnews', query: '"climate tech" funding' },
+      { type: 'gnews', query: '"clean tech" startup' },
+      { type: 'gnews', query: '"clean tech" seed' },
+      { type: 'gnews', query: '"renewable energy" startup' },
+      { type: 'gnews', query: '"renewable energy" funding' },
+      { type: 'gnews', query: '"carbon capture" startup' }
     ]
   },
   {
     id: 'maptech', label: 'Map Tech & Geospatial', color: '#E85D04', bg: '#FFECE0',
     sources: [
-      { type: 'gnews', query: '("geospatial" OR "satellite imagery" OR "earth observation") AND ("startup" OR "funding" OR "seed" OR "raises")' },
-      { type: 'gnews', query: '("mapping technology" OR "lidar startup" OR "drone mapping") AND ("seed round" OR "series a" OR "stealth")' }
+      { type: 'gnews', query: '"geospatial" startup' },
+      { type: 'gnews', query: '"geospatial" funding' },
+      { type: 'gnews', query: '"mapping technology" startup' },
+      { type: 'gnews', query: '"earth observation" startup' },
+      { type: 'gnews', query: '"lidar" startup funding' }
     ]
   },
   {
     id: 'legacy', label: 'Legacy B2B Disruption', color: '#003049', bg: '#E0E9F0',
     sources: [
-      { type: 'gnews', query: '("vertical saas" OR "b2b software" OR "workflow automation") AND ("seed round" OR "startup funding" OR "series a")' },
-      { type: 'gnews', query: '("construction tech" OR "proptech" OR "logistics tech" OR "supply chain software") AND ("startup" OR "funding" OR "raises")' },
-      { type: 'gnews', query: '("manufacturing AI" OR "industrial tech" OR "hvac software") AND ("seed" OR "raises" OR "stealth")' }
+      { type: 'gnews', query: '"vertical saas" startup' },
+      { type: 'gnews', query: '"vertical saas" funding' },
+      { type: 'gnews', query: '"construction tech" startup' },
+      { type: 'gnews', query: '"proptech" funding' },
+      { type: 'gnews', query: '"logistics tech" startup' },
+      { type: 'gnews', query: '"supply chain software" startup' },
+      { type: 'gnews', query: '"manufacturing AI" startup' },
+      { type: 'gnews', query: '"hvac software" startup' }
     ]
   }
 ];
@@ -211,14 +222,13 @@ function parseXml(xmlStr, feed) {
   try {
     const doc = new DOMParser().parseFromString(xmlStr, 'application/xml');
     return Array.from(doc.querySelectorAll('item')).map(el => {
-      // Google News formats titles as "Article Title - Publication Name"
       let title = el.querySelector('title')?.textContent || '';
       let source = feed.label;
       
       const titleParts = title.split(' - ');
       if (titleParts.length > 1) {
-        source = titleParts.pop(); // The last part is usually the source
-        title = titleParts.join(' - '); // Rejoin the rest as the title
+        source = titleParts.pop(); 
+        title = titleParts.join(' - '); 
       }
 
       let link = el.querySelector('link')?.textContent || el.querySelector('guid')?.textContent || '#';
@@ -244,16 +254,13 @@ async function fetchSource(source, feed) {
   if (!body) return [];
   
   let parsed = parseXml(body, feed);
-  
-  // We removed the strict RELEVANCE_TERMS filter here because Google News 
-  // is handling the precision. We just weed out old news and stock noise.
   return parsed.filter(a => (Date.now() - a.publishedAt) <= MAX_AGE_MS && !isStockNoise(a));
 }
 
 const idb = {
   async open() {
     return new Promise((res, rej) => {
-      const req = indexedDB.open('sr_local', 2); // bumped version
+      const req = indexedDB.open('sr_local', 2);
       req.onupgradeneeded = () => {
           if (!req.result.objectStoreNames.contains('articles')) {
               req.result.createObjectStore('articles', { keyPath: 'id' });
@@ -280,11 +287,9 @@ async function loadAll() {
   document.getElementById('progress-wrap').classList.add('visible');
   document.getElementById('refresh-btn').classList.add('spinning');
   
-  // 1. Instantly load cache
   const local = await idb.get();
   if (local.length) { allArticles = local; renderTabs(); renderGrid(); }
 
-  // 2. Fetch new sources in parallel, updating UI dynamically
   const sources = FEEDS.flatMap(feed => feed.sources.map(src => ({ src, feed })));
   const total = sources.length; 
   let done = 0;
@@ -292,7 +297,6 @@ async function loadAll() {
   const fetchPromises = sources.map(async ({ src, feed }) => {
     const items = await fetchSource(src, feed);
     
-    // Merge dynamically into main list
     const byId = new Map(allArticles.map(a => [a.id, a]));
     items.forEach(a => byId.set(a.id, byId.has(a.id) && a.excerpt === '' ? byId.get(a.id) : a));
     allArticles = [...byId.values()].sort((a,b) => b.publishedAt - a.publishedAt);
@@ -300,7 +304,7 @@ async function loadAll() {
     done++;
     document.getElementById('progress-bar').style.width = `${Math.round((done / total) * 100)}%`;
     renderTabs(); 
-    renderGrid(); // Repaint instantly as each source finishes
+    renderGrid(); 
   });
 
   await Promise.all(fetchPromises);
