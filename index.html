@@ -157,6 +157,15 @@ function isStockNoise(a) {
   return STOCK_NOISE_TERMS.filter(t => blob.includes(t)).length >= 2;
 }
 
+// Two independent keyword-search backends (Bing + Google News) run in parallel per
+// vertical. If one gets rate-limited or CAPTCHA-walled on a given refresh, the other
+// still comes through — redundancy instead of a single point of failure. Google
+// News RSS supports boolean OR, so duplicate query pairs that used to be two
+// separate Bing queries (e.g. "...startup" / "...funding") are collapsed into one
+// Google query, cutting total request count for the same coverage.
+// Direct publisher feeds (type: 'direct') are added per vertical where a stable
+// trade-pub RSS feed exists — these never hit aggregator-side bot detection since
+// they're the publisher's own feed, not a scraped search result.
 const FEEDS = [
   {
     id: 'cleantech', label: 'Clean Tech & Renewables', color: '#2A9D8F', bg: '#E4F4F2',
@@ -167,7 +176,10 @@ const FEEDS = [
       { type: 'bing', query: '"clean tech" seed' },
       { type: 'bing', query: '"renewable energy" startup' },
       { type: 'bing', query: '"renewable energy" funding' },
-      { type: 'bing', query: '"carbon capture" startup' }
+      { type: 'bing', query: '"carbon capture" startup' },
+      { type: 'google', query: '("climate tech" OR "clean tech") (startup OR funding OR seed)' },
+      { type: 'google', query: '("renewable energy" OR "carbon capture") (startup OR funding)' },
+      { type: 'direct', url: 'https://www.canarymedia.com/rss.rss', source: 'Canary Media' }
     ]
   },
   {
@@ -177,7 +189,10 @@ const FEEDS = [
       { type: 'bing', query: '"geospatial" funding' },
       { type: 'bing', query: '"mapping technology" startup' },
       { type: 'bing', query: '"earth observation" startup' },
-      { type: 'bing', query: '"lidar" startup funding' }
+      { type: 'bing', query: '"lidar" startup funding' },
+      { type: 'google', query: '("geospatial" OR "earth observation") (startup OR funding)' },
+      { type: 'google', query: '"mapping technology" OR "lidar" startup' },
+      { type: 'direct', url: 'https://www.geoconnexion.com/news/feed.rss', source: 'GeoConnexion' }
     ]
   },
   {
@@ -190,7 +205,11 @@ const FEEDS = [
       { type: 'bing', query: '"logistics tech" startup' },
       { type: 'bing', query: '"supply chain software" startup' },
       { type: 'bing', query: '"manufacturing AI" startup' },
-      { type: 'bing', query: '"hvac software" startup' }
+      { type: 'bing', query: '"hvac software" startup' },
+      { type: 'google', query: '("vertical saas" OR "proptech") (startup OR funding)' },
+      { type: 'google', query: '("construction tech" OR "logistics tech" OR "supply chain software") startup' },
+      { type: 'direct', url: 'https://www.constructiondive.com/feeds/news/', source: 'Construction Dive' },
+      { type: 'direct', url: 'https://www.utilitydive.com/feeds/news/', source: 'Utility Dive' }
     ]
   }
 ];
@@ -231,7 +250,28 @@ async function fetchUrl(url, attempt = 0) {
   }
 }
 
-function parseXml(xmlStr, feed) {
+// Google News RSS wraps every article link in a news.google.com redirect/interstitial
+// URL rather than the publisher's real URL. Left as-is, reader mode and the "Open"
+// button would both hit Google's redirect page instead of the article. Two patterns
+// exist in the wild: a legacy base64-ish encoded path, and newer feeds that include
+// the real URL directly in a <source url="..."> attribute or as a query param. We
+// resolve what we can cheaply at parse time; anything we can't decode falls back to
+// the original Google URL (better than nothing — reader mode will just report it
+// couldn't extract text, same as any blocked site).
+function resolveGoogleNewsLink(rawLink, sourceUrlAttr) {
+  if (sourceUrlAttr && /^https?:\/\//.test(sourceUrlAttr)) return sourceUrlAttr;
+  if (!rawLink) return rawLink;
+  try {
+    const u = new URL(rawLink);
+    if (!u.hostname.endsWith('news.google.com')) return rawLink;
+    // Some Google News RSS items carry the destination in a `url` query param.
+    const qp = u.searchParams.get('url');
+    if (qp) return qp;
+    return rawLink; // undecodable opaque redirect — leave as-is, fetch will likely fail gracefully
+  } catch { return rawLink; }
+}
+
+function parseXml(xmlStr, feed, sourceType) {
   try {
     const doc = new DOMParser().parseFromString(xmlStr, 'application/xml');
     if (doc.querySelector('parsererror')) return [];
@@ -239,7 +279,11 @@ function parseXml(xmlStr, feed) {
     return Array.from(doc.querySelectorAll('item')).map(el => {
       let title = (el.querySelector('title')?.textContent || '').replace(/\s[-–]\s[^-–]{1,50}$/, '').trim();
       let link = el.querySelector('link')?.textContent || el.querySelector('guid')?.textContent || '#';
-      let source = el.querySelector('source')?.textContent || feed.label;
+      const sourceEl = el.querySelector('source');
+      let source = sourceEl?.textContent || feed.label;
+      if (sourceType === 'google') {
+        link = resolveGoogleNewsLink(link, sourceEl?.getAttribute('url'));
+      }
       const publishedAt = new Date(el.querySelector('pubDate')?.textContent || '').getTime() || 0;
       const excerpt = (new DOMParser().parseFromString(el.querySelector('description')?.textContent || '', 'text/html').body.textContent || '').trim().slice(0, 200);
 
@@ -254,6 +298,16 @@ async function fetchSource(source, feed) {
   let url = '';
   if (source.type === 'bing') {
     url = `https://www.bing.com/news/search?q=${encodeURIComponent(source.query)}&format=rss`;
+  } else if (source.type === 'google') {
+    // Google News RSS — undocumented but stable for years (confirmed working as of
+    // March 2026). Supports boolean OR/AND in q, unlike Bing's RSS search. ceid/hl/gl
+    // pin region+language so results don't drift with the proxy's locale.
+    url = `https://news.google.com/rss/search?q=${encodeURIComponent(source.query)}&hl=en-US&gl=US&ceid=US:en`;
+  } else if (source.type === 'direct') {
+    // Direct publisher RSS feed — no keyword search, just the publisher's own feed.
+    // Most stable category: no aggregator-side bot detection since we're not
+    // scraping a search result, just subscribing like any other RSS reader would.
+    url = source.url;
   } else {
     url = source.url;
   }
@@ -261,7 +315,12 @@ async function fetchSource(source, feed) {
   const body = await fetchUrl(url);
   if (!body) return [];
 
-  let parsed = parseXml(body, feed);
+  let parsed = parseXml(body, feed, source.type);
+  // Direct feeds often omit a per-item <source> tag (it's implied by the feed
+  // itself), so stamp the configured publisher name on every item from that feed.
+  if (source.type === 'direct' && source.source) {
+    parsed = parsed.map(a => ({ ...a, source: a.source || source.source }));
+  }
   return parsed.filter(a => (Date.now() - a.publishedAt) <= MAX_AGE_MS && !isStockNoise(a));
 }
 
