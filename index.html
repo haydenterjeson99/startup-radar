@@ -10,15 +10,15 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --cream: #F8F9FA; --cream-dark: #E9ECEF; --charcoal: #212529;
-      --charcoal-mid: #343A40; --terracotta: #007BFF; --terra-lt: #CCE5FF;
-      --terra-dk: #0056B3; --text: #212529; --muted: #6C757D;
+      --charcoal-mid: #343A40; --accent: #007BFF; --accent-lt: #CCE5FF;
+      --accent-dk: #0056B3; --text: #212529; --muted: #6C757D;
       --border: #DEE2E6; --surface: #FFFFFF; --radius: 10px;
       --shadow: 0 1px 3px rgba(33,37,41,.07), 0 2px 8px rgba(33,37,41,.04);
     }
     body { font-family: 'Inter', system-ui, sans-serif; background: var(--cream); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
     header { background: var(--charcoal); color: #fff; padding: 14px 20px; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid #1A1D20; }
     .header-left { display: flex; align-items: center; gap: 12px; }
-    .logo { width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0; background: var(--terracotta); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -.5px; }
+    .logo { width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -.5px; }
     .header-title { font-size: 16px; font-weight: 700; color: #F8F9FA; }
     .header-sub { font-size: 11px; color: #ADB5BD; margin-top: 1px; }
     .header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
@@ -32,13 +32,13 @@
     .tabs { display: flex; padding: 0 16px; min-width: max-content; }
     .tab { padding: 11px 15px; font-size: 13px; font-weight: 500; color: var(--muted); border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; transition: color .15s, border-color .15s; display: flex; align-items: center; gap: 7px; }
     .tab:hover { color: var(--text); }
-    .tab.active { color: var(--terracotta); border-bottom-color: var(--terracotta); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
     .tab-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
     .tab-count { background: var(--cream-dark); color: var(--muted); font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 20px; }
     main { max-width: 1120px; margin: 0 auto; padding: 22px 16px 60px; }
     #progress-wrap { height: 3px; background: var(--border); border-radius: 2px; margin-bottom: 18px; overflow: hidden; display: none; }
     #progress-wrap.visible { display: block; }
-    #progress-bar { height: 100%; width: 4%; background: var(--terracotta); border-radius: 2px; transition: width .4s ease; }
+    #progress-bar { height: 100%; width: 4%; background: var(--accent); border-radius: 2px; transition: width .4s ease; }
     #status-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; min-height: 20px; }
     #status-msg { font-size: 12px; color: var(--muted); }
     #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
@@ -56,15 +56,15 @@
     .card-src { font-size: 11px; color: var(--muted); margin-left: auto; font-weight: 500; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .card-title { font-size: 14px; font-weight: 600; line-height: 1.45; color: var(--text); }
     .card-title a { color: inherit; text-decoration: none; }
-    .card-title a:hover { color: var(--terracotta); }
+    .card-title a:hover { color: var(--accent); }
     .card-excerpt { font-size: 13px; color: var(--muted); line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
     .card-foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; padding-top: 4px; gap: 8px; }
     .card-date { font-size: 11px; color: var(--muted); white-space: nowrap; }
     .card-actions { display: flex; align-items: center; gap: 12px; }
-    .act-btn { font-size: 12px; font-weight: 600; color: var(--terracotta); text-decoration: none; background: none; border: none; cursor: pointer; font-family: inherit; padding: 2px 0; }
-    .act-btn:hover { color: var(--terra-dk); }
+    .act-btn { font-size: 12px; font-weight: 600; color: var(--accent); text-decoration: none; background: none; border: none; cursor: pointer; font-family: inherit; padding: 2px 0; }
+    .act-btn:hover { color: var(--accent-dk); }
     .empty { grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--muted); font-size: 14px; }
-    
+
     /* Reader modal */
     #reader { position: fixed; inset: 0; background: var(--cream); z-index: 400; display: none; flex-direction: column; }
     #reader.open { display: flex; }
@@ -76,7 +76,7 @@
     .reader-inner { max-width: 680px; margin: 0 auto; }
     .reader-inner h1 { font-size: 22px; line-height: 1.3; margin-bottom: 8px; }
     .reader-meta { font-size: 12px; color: var(--muted); margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
-    .reader-meta a { color: var(--terracotta); }
+    .reader-meta a { color: var(--accent); }
     .reader-inner p { font-size: 15px; line-height: 1.7; margin-bottom: 14px; }
     .reader-inner h2, .reader-inner h3 { font-size: 17px; margin: 22px 0 10px; }
     .reader-loading { text-align: center; padding: 60px 0; color: var(--muted); font-size: 14px; }
@@ -139,12 +139,16 @@
    ============================================================ */
 
 const PROXY_BASE = 'https://nsl-proxy.haydenmterjeson.workers.dev/?url=';
-const FETCH_TIMEOUT_MS = 8000; 
-const MAX_AGE_MS = 6 * 30.44 * 24 * 60 * 60 * 1000; 
+const FETCH_TIMEOUT_MS = 8000;
+const MAX_AGE_MS = 6 * 30.44 * 24 * 60 * 60 * 1000;
+const HIDDEN_RETENTION_MS = 6 * 30.44 * 24 * 60 * 60 * 1000; // prune hidden-id map on the same horizon as articles
+const FETCH_RETRY_DELAY_MS = 1200;
 
 // Aggressive filter to keep out mega-cap market news
+// NOTE: bloomberg removed from source-noise list — it's a legitimate primary source
+// for funding/startup news, not noise. Term-based filtering still catches stock chatter.
 const STOCK_NOISE_TERMS = ['nasdaq', 'nyse', 'price target', 'buy rating', 'sell rating', 'analyst', 'market cap', 'p/e ratio', 'wall street', 'zacks rank', 'dow jones'];
-const STOCK_NOISE_SOURCES = ['fool.com', 'zacks', 'marketbeat', 'benzinga', 'tipranks', 'seekingalpha', 'investorplace', 'nasdaq.com', 'finance.yahoo', 'bloomberg'];
+const STOCK_NOISE_SOURCES = ['fool.com', 'zacks', 'marketbeat', 'benzinga', 'tipranks', 'seekingalpha', 'investorplace', 'nasdaq.com', 'finance.yahoo'];
 
 function isStockNoise(a) {
   const blob = `${a.title} ${a.excerpt}`.toLowerCase();
@@ -193,7 +197,7 @@ const FEEDS = [
 
 let allArticles = [];
 let hiddenArticles = JSON.parse(localStorage.getItem('sr_hidden') || '{}');
-let activeTab = 'all'; 
+let activeTab = 'all';
 let isLoading = false;
 
 function fnv1a(str) {
@@ -206,30 +210,39 @@ function escHtml(s) { return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<
 function relTime(ts) {
   if (!ts) return '';
   const diff = Date.now() - ts, h = Math.floor(diff / 3600000), dy = Math.floor(h / 24);
+  if (h < 1) return 'just now';
   if (h < 24) return `${h}h ago`;
   if (dy < 8) return `${dy}d ago`;
   return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-async function fetchUrl(url) {
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function fetchUrl(url, attempt = 0) {
   try {
     const res = await fetch(PROXY_BASE + encodeURIComponent(url), { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
-    return res.ok ? await res.text() : '';
-  } catch { return ''; }
+    if (res.ok) return await res.text();
+    // retry once on non-OK (covers transient worker/Bing hiccups, rate limiting, cold starts)
+    if (attempt === 0) { await sleep(FETCH_RETRY_DELAY_MS); return fetchUrl(url, 1); }
+    return '';
+  } catch {
+    if (attempt === 0) { await sleep(FETCH_RETRY_DELAY_MS); return fetchUrl(url, 1); }
+    return '';
+  }
 }
 
 function parseXml(xmlStr, feed) {
   try {
     const doc = new DOMParser().parseFromString(xmlStr, 'application/xml');
     if (doc.querySelector('parsererror')) return [];
-    
+
     return Array.from(doc.querySelectorAll('item')).map(el => {
       let title = (el.querySelector('title')?.textContent || '').replace(/\s[-–]\s[^-–]{1,50}$/, '').trim();
       let link = el.querySelector('link')?.textContent || el.querySelector('guid')?.textContent || '#';
       let source = el.querySelector('source')?.textContent || feed.label;
       const publishedAt = new Date(el.querySelector('pubDate')?.textContent || '').getTime() || 0;
       const excerpt = (new DOMParser().parseFromString(el.querySelector('description')?.textContent || '', 'text/html').body.textContent || '').trim().slice(0, 200);
-      
+
       if (!title || title.length < 6) return null;
       const a = { feedId: feed.id, id: articleId({title}), title, link, source, publishedAt, excerpt };
       return a;
@@ -244,10 +257,10 @@ async function fetchSource(source, feed) {
   } else {
     url = source.url;
   }
-  
+
   const body = await fetchUrl(url);
   if (!body) return [];
-  
+
   let parsed = parseXml(body, feed);
   return parsed.filter(a => (Date.now() - a.publishedAt) <= MAX_AGE_MS && !isStockNoise(a));
 }
@@ -255,7 +268,6 @@ async function fetchSource(source, feed) {
 const idb = {
   async open() {
     return new Promise((res, rej) => {
-      // Renamed DB to avoid frozen lock collisions from previous versions
       const req = indexedDB.open('startup_radar_db', 1);
       req.onupgradeneeded = () => {
           if (!req.result.objectStoreNames.contains('articles')) {
@@ -271,44 +283,122 @@ const idb = {
   },
   async put(arts) {
     try {
-      const d = await this.open(); const tx = d.transaction('articles', 'readwrite'); const st = tx.objectStore('articles');
-      arts.forEach(a => st.put(a));
-      st.openCursor().onsuccess = e => { const c = e.target.result; if (c) { if (Date.now() - c.value.publishedAt > MAX_AGE_MS) c.delete(); c.continue(); }};
+      const d = await this.open();
+
+      // Write pass: put all articles and wait for the transaction to actually complete
+      // before starting a separate prune pass. Mixing put-loop + cursor-delete in one
+      // transaction relied on request-queue timing rather than an explicit completion
+      // signal, so the two passes are now split into distinct transactions.
+      await new Promise((resolve, reject) => {
+        const tx = d.transaction('articles', 'readwrite');
+        const st = tx.objectStore('articles');
+        arts.forEach(a => st.put(a));
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+      });
+
+      // Prune pass: separate transaction, only after writes are committed.
+      await new Promise((resolve, reject) => {
+        const tx2 = d.transaction('articles', 'readwrite');
+        const st2 = tx2.objectStore('articles');
+        st2.openCursor().onsuccess = e => {
+          const c = e.target.result;
+          if (c) {
+            if (Date.now() - c.value.publishedAt > MAX_AGE_MS) c.delete();
+            c.continue();
+          }
+        };
+        tx2.oncomplete = resolve;
+        tx2.onerror = () => reject(tx2.error);
+        tx2.onabort = () => reject(tx2.error);
+      });
     } catch {}
   }
 };
+
+function pruneHiddenArticles() {
+  // hiddenArticles only ever grew before — ids for articles that have long since
+  // aged out of allArticles stuck around in localStorage forever. Drop any hidden
+  // id whose article is no longer in the current in-memory set AND was hidden
+  // long enough ago that it's safe to assume it's gone for good.
+  const now = Date.now();
+  if (!hiddenArticles.__meta) hiddenArticles.__meta = {};
+  const currentIds = new Set(allArticles.map(a => a.id));
+  let changed = false;
+
+  // stamp hide-time for any id missing one (e.g. set before this code existed)
+  Object.keys(hiddenArticles).forEach(id => {
+    if (id === '__meta') return;
+    if (!hiddenArticles.__meta[id]) { hiddenArticles.__meta[id] = now; changed = true; }
+  });
+
+  Object.keys(hiddenArticles).forEach(id => {
+    if (id === '__meta') return;
+    const hiddenAt = hiddenArticles.__meta[id] || now;
+    const stale = !currentIds.has(id) && (now - hiddenAt) > HIDDEN_RETENTION_MS;
+    if (stale) {
+      delete hiddenArticles[id];
+      delete hiddenArticles.__meta[id];
+      changed = true;
+    }
+  });
+
+  if (changed) localStorage.setItem('sr_hidden', JSON.stringify(hiddenArticles));
+}
+
+function hideArticle(id) {
+  hiddenArticles[id] = true;
+  if (!hiddenArticles.__meta) hiddenArticles.__meta = {};
+  hiddenArticles.__meta[id] = Date.now();
+  localStorage.setItem('sr_hidden', JSON.stringify(hiddenArticles));
+}
 
 async function loadAll() {
   if (isLoading) return; isLoading = true;
   document.getElementById('progress-wrap').classList.add('visible');
   document.getElementById('refresh-btn').classList.add('spinning');
-  
+
   const local = await idb.get();
   if (local.length) { allArticles = local; renderTabs(); renderGrid(); }
 
   const sources = FEEDS.flatMap(feed => feed.sources.map(src => ({ src, feed })));
-  const total = sources.length; 
+  const total = sources.length;
   let done = 0;
-  
-  // Use Promise.allSettled so one failed scrape doesn't kill the batch
+
+  // Use Promise.allSettled so one failed scrape doesn't kill the batch.
+  // Each callback merges its results into a SHARED map (built once, outside the
+  // loop) rather than re-snapshotting allArticles per-callback — the previous
+  // version rebuilt `byId` from `allArticles` inside every callback, so concurrent
+  // in-flight fetches could read stale snapshots and clobber each other's results
+  // depending on resolution order. Building one shared map up front and having
+  // every callback write into it (then syncing allArticles from it) removes that race.
+  const merged = new Map(allArticles.map(a => [a.id, a]));
+
   const fetchPromises = sources.map(async ({ src, feed }) => {
     try {
       const items = await fetchSource(src, feed);
-      const byId = new Map(allArticles.map(a => [a.id, a]));
-      items.forEach(a => byId.set(a.id, byId.has(a.id) && a.excerpt === '' ? byId.get(a.id) : a));
-      allArticles = [...byId.values()].sort((a,b) => b.publishedAt - a.publishedAt);
-    } catch(e) {
+      items.forEach(a => {
+        const existing = merged.get(a.id);
+        // keep existing entry only if the new one is strictly worse (no excerpt
+        // where we already had one); otherwise the incoming item wins.
+        if (existing && a.excerpt === '' && existing.excerpt !== '') return;
+        merged.set(a.id, a);
+      });
+      allArticles = [...merged.values()].sort((a, b) => b.publishedAt - a.publishedAt);
+    } catch (e) {
       console.warn('Source failed:', src, e);
     } finally {
       done++;
       document.getElementById('progress-bar').style.width = `${Math.round((done / total) * 100)}%`;
-      renderTabs(); 
-      renderGrid(); 
+      renderTabs();
+      renderGrid();
     }
   });
 
   await Promise.allSettled(fetchPromises);
-  
+
+  pruneHiddenArticles();
   idb.put(allArticles);
   document.getElementById('progress-wrap').classList.remove('visible');
   document.getElementById('refresh-btn').classList.remove('spinning');
@@ -332,7 +422,7 @@ function renderTabs() {
 function renderGrid() {
   const grid = document.getElementById('grid'), list = visibleList();
   if (!list.length) return grid.innerHTML = `<div class="empty">No articles yet. Click Refresh to scan.</div>`;
-  
+
   grid.innerHTML = list.map(a => {
     const f = FEEDS.find(x => x.id === a.feedId) || FEEDS[0];
     return `<div class="card-wrap" data-id="${a.id}">
@@ -368,7 +458,7 @@ grid.addEventListener('touchend', () => {
   if (!swipe || !swipe.active) return;
   const { card, dx } = swipe; swipe = null;
   if (Math.abs(dx) > 100) {
-    hiddenArticles[card.dataset.id] = true; localStorage.setItem('sr_hidden', JSON.stringify(hiddenArticles));
+    hideArticle(card.dataset.id);
     card.classList.add('flying'); card.style.transform = `translateX(${(dx > 0 ? 1 : -1) * 500}px)`;
     setTimeout(() => { renderTabs(); renderGrid(); }, 300);
   } else { card.style.transform = ''; card.closest('.card-wrap').classList.remove('swipe-on'); }
@@ -382,9 +472,15 @@ function extractArticle(html, baseUrl) {
   let best = doc.querySelector('article');
   if (!best) {
     let bestLen = 0;
+    // Widened from `:scope > p, :scope > * > p` (1-2 levels deep) to a full-depth
+    // `querySelectorAll('p')`. The shallow selector under-counted real article text
+    // on deeply nested markup (common div-soup layouts) and could pick a wrapper
+    // that wasn't the actual article body. Full-depth scoring is more forgiving of
+    // nesting at the cost of being slightly more sidebar-permissive — acceptable
+    // since the section/class noise filters above already strip most sidebar nodes.
     doc.querySelectorAll('main, section, div').forEach(el => {
       let len = 0;
-      el.querySelectorAll(':scope > p, :scope > * > p').forEach(p => len += (p.textContent || '').length);
+      el.querySelectorAll('p').forEach(p => len += (p.textContent || '').length);
       if (len > bestLen) { bestLen = len; best = el; }
     });
   }
@@ -409,7 +505,7 @@ async function openReader(id) {
     <div class="reader-meta">${escHtml(a.source)} · ${relTime(a.publishedAt)} · <a href="${escHtml(a.link)}" target="_blank" rel="noopener">original article</a></div>
     <div class="reader-loading">Fetching article text…</div>`;
   document.getElementById('reader').classList.add('open');
-  
+
   const html = await fetchUrl(a.link);
   if (!readerArticle || readerArticle.id !== id) return;
   if (!html) {
@@ -449,19 +545,19 @@ async function downloadPdf() {
   const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
   const M = 54, maxW = W - M * 2;
   let y = M;
-  
+
   const addPageIfNeeded = (h) => { if (y + h > H - M) { doc.addPage(); y = M; } };
-  
+
   doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
   for (const line of doc.splitTextToSize(readerArticle.title, maxW)) { addPageIfNeeded(20); doc.text(line, M, y); y += 20; }
   y += 4;
-  
+
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(120);
   const meta = `${readerArticle.source || ''} · ${new Date(readerArticle.publishedAt || Date.now()).toLocaleDateString()} · ${readerArticle.link}`;
   for (const line of doc.splitTextToSize(meta, maxW)) { addPageIfNeeded(12); doc.text(line, M, y); y += 12; }
   y += 10; doc.setDrawColor(200); doc.line(M, y, W - M, y); y += 18;
   doc.setTextColor(30);
-  
+
   const blocks = readerParas.length ? readerParas : [{ tag: 'p', text: readerArticle.excerpt || '(Full text was not available — excerpt only.)' }];
   for (const b of blocks) {
     if (b.tag === 'h2') { doc.setFont('helvetica', 'bold'); doc.setFontSize(12); y += 6; }
@@ -470,7 +566,7 @@ async function downloadPdf() {
     for (const line of lines) { addPageIfNeeded(15); doc.text(line, M, y); y += 15; }
     y += 6;
   }
-  
+
   doc.setFontSize(8); doc.setTextColor(150);
   const safe = (readerArticle.title || 'article').replace(/[^a-z0-9]+/gi, '-').slice(0, 60);
   doc.save(`${safe}.pdf`);
