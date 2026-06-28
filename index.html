@@ -135,7 +135,7 @@
 
 <script>
 /* ============================================================
-   STARTUP RADAR - High Volume / Async Batching Edition
+   STARTUP RADAR - High Volume Bing Edition
    ============================================================ */
 
 const PROXY_BASE = 'https://nsl-proxy.haydenmterjeson.workers.dev/?url=';
@@ -157,36 +157,36 @@ const FEEDS = [
   {
     id: 'cleantech', label: 'Clean Tech & Renewables', color: '#2A9D8F', bg: '#E4F4F2',
     sources: [
-      { type: 'gnews', query: '"climate tech" startup' },
-      { type: 'gnews', query: '"climate tech" funding' },
-      { type: 'gnews', query: '"clean tech" startup' },
-      { type: 'gnews', query: '"clean tech" seed' },
-      { type: 'gnews', query: '"renewable energy" startup' },
-      { type: 'gnews', query: '"renewable energy" funding' },
-      { type: 'gnews', query: '"carbon capture" startup' }
+      { type: 'bing', query: '"climate tech" startup' },
+      { type: 'bing', query: '"climate tech" funding' },
+      { type: 'bing', query: '"clean tech" startup' },
+      { type: 'bing', query: '"clean tech" seed' },
+      { type: 'bing', query: '"renewable energy" startup' },
+      { type: 'bing', query: '"renewable energy" funding' },
+      { type: 'bing', query: '"carbon capture" startup' }
     ]
   },
   {
     id: 'maptech', label: 'Map Tech & Geospatial', color: '#E85D04', bg: '#FFECE0',
     sources: [
-      { type: 'gnews', query: '"geospatial" startup' },
-      { type: 'gnews', query: '"geospatial" funding' },
-      { type: 'gnews', query: '"mapping technology" startup' },
-      { type: 'gnews', query: '"earth observation" startup' },
-      { type: 'gnews', query: '"lidar" startup funding' }
+      { type: 'bing', query: '"geospatial" startup' },
+      { type: 'bing', query: '"geospatial" funding' },
+      { type: 'bing', query: '"mapping technology" startup' },
+      { type: 'bing', query: '"earth observation" startup' },
+      { type: 'bing', query: '"lidar" startup funding' }
     ]
   },
   {
     id: 'legacy', label: 'Legacy B2B Disruption', color: '#003049', bg: '#E0E9F0',
     sources: [
-      { type: 'gnews', query: '"vertical saas" startup' },
-      { type: 'gnews', query: '"vertical saas" funding' },
-      { type: 'gnews', query: '"construction tech" startup' },
-      { type: 'gnews', query: '"proptech" funding' },
-      { type: 'gnews', query: '"logistics tech" startup' },
-      { type: 'gnews', query: '"supply chain software" startup' },
-      { type: 'gnews', query: '"manufacturing AI" startup' },
-      { type: 'gnews', query: '"hvac software" startup' }
+      { type: 'bing', query: '"vertical saas" startup' },
+      { type: 'bing', query: '"vertical saas" funding' },
+      { type: 'bing', query: '"construction tech" startup' },
+      { type: 'bing', query: '"proptech" funding' },
+      { type: 'bing', query: '"logistics tech" startup' },
+      { type: 'bing', query: '"supply chain software" startup' },
+      { type: 'bing', query: '"manufacturing AI" startup' },
+      { type: 'bing', query: '"hvac software" startup' }
     ]
   }
 ];
@@ -221,22 +221,17 @@ async function fetchUrl(url) {
 function parseXml(xmlStr, feed) {
   try {
     const doc = new DOMParser().parseFromString(xmlStr, 'application/xml');
+    if (doc.querySelector('parsererror')) return [];
+    
     return Array.from(doc.querySelectorAll('item')).map(el => {
-      let title = el.querySelector('title')?.textContent || '';
-      let source = feed.label;
-      
-      const titleParts = title.split(' - ');
-      if (titleParts.length > 1) {
-        source = titleParts.pop(); 
-        title = titleParts.join(' - '); 
-      }
-
+      let title = (el.querySelector('title')?.textContent || '').replace(/\s[-–]\s[^-–]{1,50}$/, '').trim();
       let link = el.querySelector('link')?.textContent || el.querySelector('guid')?.textContent || '#';
+      let source = el.querySelector('source')?.textContent || feed.label;
       const publishedAt = new Date(el.querySelector('pubDate')?.textContent || '').getTime() || 0;
       const excerpt = (new DOMParser().parseFromString(el.querySelector('description')?.textContent || '', 'text/html').body.textContent || '').trim().slice(0, 200);
       
       if (!title || title.length < 6) return null;
-      const a = { feedId: feed.id, id: articleId({title}), title: title.trim(), link, source: source.trim(), publishedAt, excerpt };
+      const a = { feedId: feed.id, id: articleId({title}), title, link, source, publishedAt, excerpt };
       return a;
     }).filter(Boolean);
   } catch { return []; }
@@ -244,8 +239,8 @@ function parseXml(xmlStr, feed) {
 
 async function fetchSource(source, feed) {
   let url = '';
-  if (source.type === 'gnews') {
-    url = `https://news.google.com/rss/search?q=${encodeURIComponent(source.query)}&hl=en-US&gl=US&ceid=US:en`;
+  if (source.type === 'bing') {
+    url = `https://www.bing.com/news/search?q=${encodeURIComponent(source.query)}&format=rss`;
   } else {
     url = source.url;
   }
@@ -260,7 +255,8 @@ async function fetchSource(source, feed) {
 const idb = {
   async open() {
     return new Promise((res, rej) => {
-      const req = indexedDB.open('sr_local', 2);
+      // Renamed DB to avoid frozen lock collisions from previous versions
+      const req = indexedDB.open('startup_radar_db', 1);
       req.onupgradeneeded = () => {
           if (!req.result.objectStoreNames.contains('articles')) {
               req.result.createObjectStore('articles', { keyPath: 'id' });
@@ -294,20 +290,24 @@ async function loadAll() {
   const total = sources.length; 
   let done = 0;
   
+  // Use Promise.allSettled so one failed scrape doesn't kill the batch
   const fetchPromises = sources.map(async ({ src, feed }) => {
-    const items = await fetchSource(src, feed);
-    
-    const byId = new Map(allArticles.map(a => [a.id, a]));
-    items.forEach(a => byId.set(a.id, byId.has(a.id) && a.excerpt === '' ? byId.get(a.id) : a));
-    allArticles = [...byId.values()].sort((a,b) => b.publishedAt - a.publishedAt);
-    
-    done++;
-    document.getElementById('progress-bar').style.width = `${Math.round((done / total) * 100)}%`;
-    renderTabs(); 
-    renderGrid(); 
+    try {
+      const items = await fetchSource(src, feed);
+      const byId = new Map(allArticles.map(a => [a.id, a]));
+      items.forEach(a => byId.set(a.id, byId.has(a.id) && a.excerpt === '' ? byId.get(a.id) : a));
+      allArticles = [...byId.values()].sort((a,b) => b.publishedAt - a.publishedAt);
+    } catch(e) {
+      console.warn('Source failed:', src, e);
+    } finally {
+      done++;
+      document.getElementById('progress-bar').style.width = `${Math.round((done / total) * 100)}%`;
+      renderTabs(); 
+      renderGrid(); 
+    }
   });
 
-  await Promise.all(fetchPromises);
+  await Promise.allSettled(fetchPromises);
   
   idb.put(allArticles);
   document.getElementById('progress-wrap').classList.remove('visible');
