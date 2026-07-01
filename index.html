@@ -80,6 +80,10 @@
     .reader-inner p { font-size: 15px; line-height: 1.7; margin-bottom: 14px; }
     .reader-inner h2, .reader-inner h3 { font-size: 17px; margin: 22px 0 10px; }
     .reader-loading { text-align: center; padding: 60px 0; color: var(--muted); font-size: 14px; }
+    .reader-blocked { text-align: center; padding: 40px 20px; }
+    .reader-blocked p { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 16px; }
+    .reader-blocked a { color: var(--accent); font-weight: 600; text-decoration: none; }
+    .reader-blocked a:hover { color: var(--accent-dk); }
     @media print {
       body > header, .tabs-wrap, main { display: none !important; }
       #reader { position: static; display: block !important; background: #fff; }
@@ -139,14 +143,16 @@
    ============================================================ */
 
 const PROXY_BASE = 'https://nsl-proxy.haydenmterjeson.workers.dev/?url=';
-const FETCH_TIMEOUT_MS = 8000;
+// Jina Reader API: fetches any URL and returns clean readable text,
+// handling JS-rendered pages and most bot-blocking. Free, no auth needed.
+// Used as the primary reader fetch strategy; falls back gracefully if it fails.
+const JINA_READER_BASE = 'https://r.jina.ai/';
+const FETCH_TIMEOUT_MS = 15000; // Jina can be slower than a raw proxy fetch
+const READER_FETCH_TIMEOUT_MS = 20000; // extra headroom for Jina on slow articles
 const MAX_AGE_MS = 6 * 30.44 * 24 * 60 * 60 * 1000;
-const HIDDEN_RETENTION_MS = 6 * 30.44 * 24 * 60 * 60 * 1000; // prune hidden-id map on the same horizon as articles
+const HIDDEN_RETENTION_MS = 6 * 30.44 * 24 * 60 * 60 * 1000;
 const FETCH_RETRY_DELAY_MS = 1200;
 
-// Aggressive filter to keep out mega-cap market news
-// NOTE: bloomberg removed from source-noise list — it's a legitimate primary source
-// for funding/startup news, not noise. Term-based filtering still catches stock chatter.
 const STOCK_NOISE_TERMS = ['nasdaq', 'nyse', 'price target', 'buy rating', 'sell rating', 'analyst', 'market cap', 'p/e ratio', 'wall street', 'zacks rank', 'dow jones'];
 const STOCK_NOISE_SOURCES = ['fool.com', 'zacks', 'marketbeat', 'benzinga', 'tipranks', 'seekingalpha', 'investorplace', 'nasdaq.com', 'finance.yahoo'];
 
@@ -157,15 +163,6 @@ function isStockNoise(a) {
   return STOCK_NOISE_TERMS.filter(t => blob.includes(t)).length >= 2;
 }
 
-// Two independent keyword-search backends (Bing + Google News) run in parallel per
-// vertical. If one gets rate-limited or CAPTCHA-walled on a given refresh, the other
-// still comes through — redundancy instead of a single point of failure. Google
-// News RSS supports boolean OR, so duplicate query pairs that used to be two
-// separate Bing queries (e.g. "...startup" / "...funding") are collapsed into one
-// Google query, cutting total request count for the same coverage.
-// Direct publisher feeds (type: 'direct') are added per vertical where a stable
-// trade-pub RSS feed exists — these never hit aggregator-side bot detection since
-// they're the publisher's own feed, not a scraped search result.
 const FEEDS = [
   {
     id: 'cleantech', label: 'Clean Tech & Renewables', color: '#2A9D8F', bg: '#E4F4F2',
@@ -241,7 +238,6 @@ async function fetchUrl(url, attempt = 0) {
   try {
     const res = await fetch(PROXY_BASE + encodeURIComponent(url), { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
     if (res.ok) return await res.text();
-    // retry once on non-OK (covers transient worker/Bing hiccups, rate limiting, cold starts)
     if (attempt === 0) { await sleep(FETCH_RETRY_DELAY_MS); return fetchUrl(url, 1); }
     return '';
   } catch {
@@ -250,24 +246,96 @@ async function fetchUrl(url, attempt = 0) {
   }
 }
 
-// Google News RSS wraps every article link in a news.google.com redirect/interstitial
-// URL rather than the publisher's real URL. Left as-is, reader mode and the "Open"
-// button would both hit Google's redirect page instead of the article. Two patterns
-// exist in the wild: a legacy base64-ish encoded path, and newer feeds that include
-// the real URL directly in a <source url="..."> attribute or as a query param. We
-// resolve what we can cheaply at parse time; anything we can't decode falls back to
-// the original Google URL (better than nothing — reader mode will just report it
-// couldn't extract text, same as any blocked site).
+// Fetch article text via Jina Reader API (r.jina.ai).
+// Jina runs a headless browser on their end, so it handles:
+//   - JS-rendered pages (Next.js, React, etc.)
+//   - Most soft bot blocks
+//   - Paywall-lite sites
+// Returns clean Markdown text, or '' on failure.
+async function fetchViaJina(articleUrl) {
+  const jinaUrl = JINA_READER_BASE + articleUrl;
+  try {
+    const res = await fetch(jinaUrl, {
+      headers: {
+        // Request plain text (Markdown) output — easier to parse than HTML
+        'Accept': 'text/plain, text/markdown, */*',
+        // Ask Jina to skip image-heavy sections for faster response
+        'X-Remove-Selector': 'img, figure, picture, video, iframe, .ad, .advertisement, .promo, [class*="related"], [class*="newsletter"], [class*="subscribe"]',
+        // Return only the main content, not boilerplate nav/footer
+        'X-Return-Format': 'text',
+      },
+      signal: AbortSignal.timeout(READER_FETCH_TIMEOUT_MS),
+    });
+    if (!res.ok) return '';
+    const text = await res.text();
+    return text || '';
+  } catch {
+    return '';
+  }
+}
+
+// Parse Jina's Markdown/text output into the same {tag, text}[] format
+// that the rest of the reader pipeline expects. Jina returns clean prose
+// with Markdown headings (## / ###) so we just need a lightweight parser.
+function parseJinaText(raw) {
+  if (!raw || raw.length < 100) return [];
+
+  const lines = raw.split('\n');
+  const blocks = [];
+  let inFrontmatter = false;
+  let frontmatterDone = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    // Skip Jina's YAML-like frontmatter block (Title: / URL: / Published: etc.)
+    if (i === 0 && line === '---') { inFrontmatter = true; continue; }
+    if (inFrontmatter) {
+      if (line === '---') { inFrontmatter = false; frontmatterDone = true; }
+      continue;
+    }
+
+    if (!line) continue;
+
+    // Headings
+    if (/^#{1,3}\s/.test(line)) {
+      const text = line.replace(/^#{1,3}\s+/, '').trim();
+      if (text.length > 3) blocks.push({ tag: 'h2', text });
+      continue;
+    }
+
+    // Skip lines that look like metadata, image captions, or Jina artifacts
+    if (/^(Title|URL|Published|Author|Source|Image):/i.test(line)) continue;
+    if (/^\[.*\]\(.*\)$/.test(line)) continue; // bare markdown link lines
+    if (line.startsWith('!['  )) continue;      // image lines
+    if (line.length < 30) continue;             // too short to be body text
+
+    // Strip inline markdown: bold, italic, links → plain text
+    const text = line
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/\*(.+?)\*/g, '$1')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/`(.+?)`/g, '$1')
+      .trim();
+
+    if (text.length >= 30) blocks.push({ tag: 'p', text });
+  }
+
+  // Deduplicate consecutive identical blocks (Jina occasionally repeats headings)
+  return blocks
+    .filter((b, i) => !i || b.text !== blocks[i - 1].text)
+    .slice(0, 200);
+}
+
 function resolveGoogleNewsLink(rawLink, sourceUrlAttr) {
   if (sourceUrlAttr && /^https?:\/\//.test(sourceUrlAttr)) return sourceUrlAttr;
   if (!rawLink) return rawLink;
   try {
     const u = new URL(rawLink);
     if (!u.hostname.endsWith('news.google.com')) return rawLink;
-    // Some Google News RSS items carry the destination in a `url` query param.
     const qp = u.searchParams.get('url');
     if (qp) return qp;
-    return rawLink; // undecodable opaque redirect — leave as-is, fetch will likely fail gracefully
+    return rawLink;
   } catch { return rawLink; }
 }
 
@@ -299,14 +367,8 @@ async function fetchSource(source, feed) {
   if (source.type === 'bing') {
     url = `https://www.bing.com/news/search?q=${encodeURIComponent(source.query)}&format=rss`;
   } else if (source.type === 'google') {
-    // Google News RSS — undocumented but stable for years (confirmed working as of
-    // March 2026). Supports boolean OR/AND in q, unlike Bing's RSS search. ceid/hl/gl
-    // pin region+language so results don't drift with the proxy's locale.
     url = `https://news.google.com/rss/search?q=${encodeURIComponent(source.query)}&hl=en-US&gl=US&ceid=US:en`;
   } else if (source.type === 'direct') {
-    // Direct publisher RSS feed — no keyword search, just the publisher's own feed.
-    // Most stable category: no aggregator-side bot detection since we're not
-    // scraping a search result, just subscribing like any other RSS reader would.
     url = source.url;
   } else {
     url = source.url;
@@ -316,8 +378,6 @@ async function fetchSource(source, feed) {
   if (!body) return [];
 
   let parsed = parseXml(body, feed, source.type);
-  // Direct feeds often omit a per-item <source> tag (it's implied by the feed
-  // itself), so stamp the configured publisher name on every item from that feed.
   if (source.type === 'direct' && source.source) {
     parsed = parsed.map(a => ({ ...a, source: a.source || source.source }));
   }
@@ -343,11 +403,6 @@ const idb = {
   async put(arts) {
     try {
       const d = await this.open();
-
-      // Write pass: put all articles and wait for the transaction to actually complete
-      // before starting a separate prune pass. Mixing put-loop + cursor-delete in one
-      // transaction relied on request-queue timing rather than an explicit completion
-      // signal, so the two passes are now split into distinct transactions.
       await new Promise((resolve, reject) => {
         const tx = d.transaction('articles', 'readwrite');
         const st = tx.objectStore('articles');
@@ -356,8 +411,6 @@ const idb = {
         tx.onerror = () => reject(tx.error);
         tx.onabort = () => reject(tx.error);
       });
-
-      // Prune pass: separate transaction, only after writes are committed.
       await new Promise((resolve, reject) => {
         const tx2 = d.transaction('articles', 'readwrite');
         const st2 = tx2.objectStore('articles');
@@ -377,16 +430,11 @@ const idb = {
 };
 
 function pruneHiddenArticles() {
-  // hiddenArticles only ever grew before — ids for articles that have long since
-  // aged out of allArticles stuck around in localStorage forever. Drop any hidden
-  // id whose article is no longer in the current in-memory set AND was hidden
-  // long enough ago that it's safe to assume it's gone for good.
   const now = Date.now();
   if (!hiddenArticles.__meta) hiddenArticles.__meta = {};
   const currentIds = new Set(allArticles.map(a => a.id));
   let changed = false;
 
-  // stamp hide-time for any id missing one (e.g. set before this code existed)
   Object.keys(hiddenArticles).forEach(id => {
     if (id === '__meta') return;
     if (!hiddenArticles.__meta[id]) { hiddenArticles.__meta[id] = now; changed = true; }
@@ -425,13 +473,6 @@ async function loadAll() {
   const total = sources.length;
   let done = 0;
 
-  // Use Promise.allSettled so one failed scrape doesn't kill the batch.
-  // Each callback merges its results into a SHARED map (built once, outside the
-  // loop) rather than re-snapshotting allArticles per-callback — the previous
-  // version rebuilt `byId` from `allArticles` inside every callback, so concurrent
-  // in-flight fetches could read stale snapshots and clobber each other's results
-  // depending on resolution order. Building one shared map up front and having
-  // every callback write into it (then syncing allArticles from it) removes that race.
   const merged = new Map(allArticles.map(a => [a.id, a]));
 
   const fetchPromises = sources.map(async ({ src, feed }) => {
@@ -439,8 +480,6 @@ async function loadAll() {
       const items = await fetchSource(src, feed);
       items.forEach(a => {
         const existing = merged.get(a.id);
-        // keep existing entry only if the new one is strictly worse (no excerpt
-        // where we already had one); otherwise the incoming item wins.
         if (existing && a.excerpt === '' && existing.excerpt !== '') return;
         merged.set(a.id, a);
       });
@@ -525,18 +564,59 @@ grid.addEventListener('touchend', () => {
 
 // ---------- READER VIEW + PDF ----------
 let readerArticle = null, readerParas = [];
-function extractArticle(html, baseUrl) {
+
+async function openReader(id) {
+  const a = allArticles.find(x => x.id === id);
+  if (!a) return;
+  readerArticle = a; readerParas = [];
+
+  document.getElementById('reader-title').textContent = a.source || '';
+  const inner = document.getElementById('reader-inner');
+  inner.innerHTML = `<h1>${escHtml(a.title)}</h1>
+    <div class="reader-meta">${escHtml(a.source)} · ${relTime(a.publishedAt)} · <a href="${escHtml(a.link)}" target="_blank" rel="noopener">original article</a></div>
+    <div class="reader-loading">Fetching article…</div>`;
+  document.getElementById('reader').classList.add('open');
+
+  // Strategy 1: Jina Reader API — handles JS-rendered pages, most bot blocks
+  const jinaText = await fetchViaJina(a.link);
+
+  // Guard: user may have closed reader while fetch was in flight
+  if (!readerArticle || readerArticle.id !== id) return;
+
+  if (jinaText) {
+    readerParas = parseJinaText(jinaText);
+  }
+
+  // Strategy 2: if Jina returned nothing usable, fall back to raw proxy fetch
+  // with the old HTML extraction heuristic. This covers paywalled or Jina-blocked
+  // sites where at least the raw HTML has some readable server-side content.
+  if (!readerParas.length) {
+    const html = await fetchUrl(a.link);
+    if (!readerArticle || readerArticle.id !== id) return;
+    if (html) readerParas = extractArticleHtml(html);
+  }
+
+  const loadingEl = inner.querySelector('.reader-loading');
+
+  if (!readerParas.length) {
+    if (loadingEl) loadingEl.outerHTML = `<div class="reader-blocked">
+      <p>This article couldn't be fetched for reading — the site may require a subscription or block automated access.</p>
+      <p><a href="${escHtml(a.link)}" target="_blank" rel="noopener">Open the original article →</a></p>
+    </div>`;
+    return;
+  }
+
+  if (loadingEl) loadingEl.remove();
+  inner.insertAdjacentHTML('beforeend', readerParas.map(b => `<${b.tag}>${escHtml(b.text)}</${b.tag}>`).join(''));
+}
+
+// Fallback HTML extraction (used only if Jina fails)
+function extractArticleHtml(html) {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   doc.querySelectorAll('script, style, noscript, nav, header, footer, aside, form, iframe, svg, button, [role="navigation"], [class*="related"], [class*="newsletter"], [class*="subscribe"], [class*="promo"], [class*="comment"]').forEach(n => n.remove());
   let best = doc.querySelector('article');
   if (!best) {
     let bestLen = 0;
-    // Widened from `:scope > p, :scope > * > p` (1-2 levels deep) to a full-depth
-    // `querySelectorAll('p')`. The shallow selector under-counted real article text
-    // on deeply nested markup (common div-soup layouts) and could pick a wrapper
-    // that wasn't the actual article body. Full-depth scoring is more forgiving of
-    // nesting at the cost of being slightly more sidebar-permissive — acceptable
-    // since the section/class noise filters above already strip most sidebar nodes.
     doc.querySelectorAll('main, section, div').forEach(el => {
       let len = 0;
       el.querySelectorAll('p').forEach(p => len += (p.textContent || '').length);
@@ -552,32 +632,6 @@ function extractArticle(html, baseUrl) {
     out.push({ tag: /^h[1-3]$/i.test(el.tagName) ? 'h2' : 'p', text: txt });
   });
   return out.filter((b, i) => !i || b.text !== out[i - 1].text).slice(0, 220);
-}
-
-async function openReader(id) {
-  const a = allArticles.find(x => x.id === id);
-  if (!a) return;
-  readerArticle = a; readerParas = [];
-  document.getElementById('reader-title').textContent = a.source || '';
-  const inner = document.getElementById('reader-inner');
-  inner.innerHTML = `<h1>${escHtml(a.title)}</h1>
-    <div class="reader-meta">${escHtml(a.source)} · ${relTime(a.publishedAt)} · <a href="${escHtml(a.link)}" target="_blank" rel="noopener">original article</a></div>
-    <div class="reader-loading">Fetching article text…</div>`;
-  document.getElementById('reader').classList.add('open');
-
-  const html = await fetchUrl(a.link);
-  if (!readerArticle || readerArticle.id !== id) return;
-  if (!html) {
-    inner.querySelector('.reader-loading').textContent = 'Could not fetch this article (site may block readers). Use "original article" above.';
-    return;
-  }
-  readerParas = extractArticle(html, a.link);
-  if (!readerParas.length) {
-    inner.querySelector('.reader-loading').textContent = 'No readable text found. Use "original article" above.';
-    return;
-  }
-  inner.querySelector('.reader-loading').remove();
-  inner.insertAdjacentHTML('beforeend', readerParas.map(b => `<${b.tag}>${escHtml(b.text)}</${b.tag}>`).join(''));
 }
 
 function closeReader() { document.getElementById('reader').classList.remove('open'); readerArticle = null; }
@@ -639,7 +693,6 @@ document.getElementById('reader-close').addEventListener('click', closeReader);
 document.getElementById('reader-print').addEventListener('click', () => window.print());
 document.getElementById('reader-pdf').addEventListener('click', downloadPdf);
 
-// Auto-load on open
 loadAll();
 </script>
 </body>
