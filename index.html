@@ -121,9 +121,7 @@
 <div class="tabs-wrap"><div class="tabs" id="tabs"></div></div>
 <main>
   <div id="progress-wrap"><div id="progress-bar"></div></div>
-  <div id="status-bar" style="display:none">
-    <span id="status-msg">Loading…</span>
-  </div>
+  <div id="status-bar" style="display:none"><span id="status-msg">Loading…</span></div>
   <div id="grid"></div>
 </main>
 
@@ -139,101 +137,118 @@
 
 <script>
 /* ============================================================
-   STARTUP RADAR - High Volume Bing Edition
+   STARTUP RADAR — with D1-backed dismiss sync
    ============================================================ */
 
-const PROXY_BASE = 'https://nsl-proxy.haydenmterjeson.workers.dev/?url=';
-// Jina Reader API: fetches any URL and returns clean readable text,
-// handling JS-rendered pages and most bot-blocking. Free, no auth needed.
-// Used as the primary reader fetch strategy; falls back gracefully if it fails.
+const API_BASE    = 'https://nsl-proxy.haydenmterjeson.workers.dev';
+const PROXY_BASE  = API_BASE + '/?url=';
 const JINA_READER_BASE = 'https://r.jina.ai/';
-const FETCH_TIMEOUT_MS = 15000; // Jina can be slower than a raw proxy fetch
-const READER_FETCH_TIMEOUT_MS = 20000; // extra headroom for Jina on slow articles
-const MAX_AGE_MS = 6 * 30.44 * 24 * 60 * 60 * 1000;
-const HIDDEN_RETENTION_MS = 6 * 30.44 * 24 * 60 * 60 * 1000;
-const FETCH_RETRY_DELAY_MS = 1200;
 
-const STOCK_NOISE_TERMS = ['nasdaq', 'nyse', 'price target', 'buy rating', 'sell rating', 'analyst', 'market cap', 'p/e ratio', 'wall street', 'zacks rank', 'dow jones'];
-const STOCK_NOISE_SOURCES = ['fool.com', 'zacks', 'marketbeat', 'benzinga', 'tipranks', 'seekingalpha', 'investorplace', 'nasdaq.com', 'finance.yahoo'];
+const FETCH_TIMEOUT_MS        = 15000;
+const READER_FETCH_TIMEOUT_MS = 20000;
+const FETCH_RETRY_DELAY_MS    = 1200;
+const MAX_AGE_MS              = 6 * 30.44 * 24 * 60 * 60 * 1000;
+const HIDDEN_RETENTION_MS     = MAX_AGE_MS;
+
+// ── Device identity ───────────────────────────────────────────
+// A stable random ID stored in localStorage. Passed with every
+// /api/feedback call so the D1 database can attribute dismisses
+// to this device and return them on the next /api/state load.
+function getDeviceId() {
+  let id = localStorage.getItem('sr_device_id');
+  if (!id) {
+    id = 'dev_' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    localStorage.setItem('sr_device_id', id);
+  }
+  return id;
+}
+const DEVICE_ID = getDeviceId();
+
+// ── Noise filters ─────────────────────────────────────────────
+const STOCK_NOISE_TERMS   = ['nasdaq','nyse','price target','buy rating','sell rating','analyst','market cap','p/e ratio','wall street','zacks rank','dow jones'];
+const STOCK_NOISE_SOURCES = ['fool.com','zacks','marketbeat','benzinga','tipranks','seekingalpha','investorplace','nasdaq.com','finance.yahoo'];
 
 function isStockNoise(a) {
   const blob = `${a.title} ${a.excerpt}`.toLowerCase();
-  const src = (a.source || '').toLowerCase();
+  const src  = (a.source || '').toLowerCase();
   if (STOCK_NOISE_SOURCES.some(s => src.includes(s))) return true;
   return STOCK_NOISE_TERMS.filter(t => blob.includes(t)).length >= 2;
 }
 
+// ── Feed definitions ──────────────────────────────────────────
 const FEEDS = [
   {
     id: 'cleantech', label: 'Clean Tech & Renewables', color: '#2A9D8F', bg: '#E4F4F2',
     sources: [
-      { type: 'bing', query: '"climate tech" startup' },
-      { type: 'bing', query: '"climate tech" funding' },
-      { type: 'bing', query: '"clean tech" startup' },
-      { type: 'bing', query: '"clean tech" seed' },
-      { type: 'bing', query: '"renewable energy" startup' },
-      { type: 'bing', query: '"renewable energy" funding' },
-      { type: 'bing', query: '"carbon capture" startup' },
+      { type: 'bing',   query: '"climate tech" startup' },
+      { type: 'bing',   query: '"climate tech" funding' },
+      { type: 'bing',   query: '"clean tech" startup' },
+      { type: 'bing',   query: '"clean tech" seed' },
+      { type: 'bing',   query: '"renewable energy" startup' },
+      { type: 'bing',   query: '"renewable energy" funding' },
+      { type: 'bing',   query: '"carbon capture" startup' },
       { type: 'google', query: '("climate tech" OR "clean tech") (startup OR funding OR seed)' },
       { type: 'google', query: '("renewable energy" OR "carbon capture") (startup OR funding)' },
-      { type: 'direct', url: 'https://www.canarymedia.com/rss.rss', source: 'Canary Media' }
+      { type: 'direct', url: 'https://www.canarymedia.com/rss.rss', source: 'Canary Media' },
     ]
   },
   {
     id: 'maptech', label: 'Map Tech & Geospatial', color: '#E85D04', bg: '#FFECE0',
     sources: [
-      { type: 'bing', query: '"geospatial" startup' },
-      { type: 'bing', query: '"geospatial" funding' },
-      { type: 'bing', query: '"mapping technology" startup' },
-      { type: 'bing', query: '"earth observation" startup' },
-      { type: 'bing', query: '"lidar" startup funding' },
+      { type: 'bing',   query: '"geospatial" startup' },
+      { type: 'bing',   query: '"geospatial" funding' },
+      { type: 'bing',   query: '"mapping technology" startup' },
+      { type: 'bing',   query: '"earth observation" startup' },
+      { type: 'bing',   query: '"lidar" startup funding' },
       { type: 'google', query: '("geospatial" OR "earth observation") (startup OR funding)' },
       { type: 'google', query: '"mapping technology" OR "lidar" startup' },
-      { type: 'direct', url: 'https://www.geoconnexion.com/news/feed.rss', source: 'GeoConnexion' }
+      { type: 'direct', url: 'https://www.geoconnexion.com/news/feed.rss', source: 'GeoConnexion' },
     ]
   },
   {
     id: 'legacy', label: 'Legacy B2B Disruption', color: '#003049', bg: '#E0E9F0',
     sources: [
-      { type: 'bing', query: '"vertical saas" startup' },
-      { type: 'bing', query: '"vertical saas" funding' },
-      { type: 'bing', query: '"construction tech" startup' },
-      { type: 'bing', query: '"proptech" funding' },
-      { type: 'bing', query: '"logistics tech" startup' },
-      { type: 'bing', query: '"supply chain software" startup' },
-      { type: 'bing', query: '"manufacturing AI" startup' },
-      { type: 'bing', query: '"hvac software" startup' },
+      { type: 'bing',   query: '"vertical saas" startup' },
+      { type: 'bing',   query: '"vertical saas" funding' },
+      { type: 'bing',   query: '"construction tech" startup' },
+      { type: 'bing',   query: '"proptech" funding' },
+      { type: 'bing',   query: '"logistics tech" startup' },
+      { type: 'bing',   query: '"supply chain software" startup' },
+      { type: 'bing',   query: '"manufacturing AI" startup' },
+      { type: 'bing',   query: '"hvac software" startup' },
       { type: 'google', query: '("vertical saas" OR "proptech") (startup OR funding)' },
       { type: 'google', query: '("construction tech" OR "logistics tech" OR "supply chain software") startup' },
       { type: 'direct', url: 'https://www.constructiondive.com/feeds/news/', source: 'Construction Dive' },
-      { type: 'direct', url: 'https://www.utilitydive.com/feeds/news/', source: 'Utility Dive' }
+      { type: 'direct', url: 'https://www.utilitydive.com/feeds/news/',      source: 'Utility Dive' },
     ]
   }
 ];
 
-let allArticles = [];
+// ── State ─────────────────────────────────────────────────────
+let allArticles    = [];
 let hiddenArticles = JSON.parse(localStorage.getItem('sr_hidden') || '{}');
-let activeTab = 'all';
-let isLoading = false;
+let activeTab      = 'all';
+let isLoading      = false;
 
+// ── Helpers ───────────────────────────────────────────────────
 function fnv1a(str) {
   let h = 0x811c9dc5;
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
   return ('0000000' + (h >>> 0).toString(16)).slice(-8);
 }
-function articleId(a) { return 'a' + fnv1a((a.title || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 80)); }
-function escHtml(s) { return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function articleId(a) { return 'a' + fnv1a((a.title||'').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,80)); }
+function escHtml(s)   { return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function relTime(ts) {
   if (!ts) return '';
-  const diff = Date.now() - ts, h = Math.floor(diff / 3600000), dy = Math.floor(h / 24);
-  if (h < 1) return 'just now';
+  const diff = Date.now()-ts, h = Math.floor(diff/3600000), dy = Math.floor(h/24);
+  if (h < 1)  return 'just now';
   if (h < 24) return `${h}h ago`;
   if (dy < 8) return `${dy}d ago`;
-  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric'});
 }
-
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+// ── Fetch helpers ─────────────────────────────────────────────
 async function fetchUrl(url, attempt = 0) {
   try {
     const res = await fetch(PROXY_BASE + encodeURIComponent(url), { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
@@ -246,87 +261,97 @@ async function fetchUrl(url, attempt = 0) {
   }
 }
 
-// Fetch article text via Jina Reader API (r.jina.ai).
-// Jina runs a headless browser on their end, so it handles:
-//   - JS-rendered pages (Next.js, React, etc.)
-//   - Most soft bot blocks
-//   - Paywall-lite sites
-// Returns clean Markdown text, or '' on failure.
 async function fetchViaJina(articleUrl) {
-  const jinaUrl = JINA_READER_BASE + articleUrl;
   try {
-    const res = await fetch(jinaUrl, {
+    const res = await fetch(JINA_READER_BASE + articleUrl, {
       headers: {
-        // Request plain text (Markdown) output — easier to parse than HTML
         'Accept': 'text/plain, text/markdown, */*',
-        // Ask Jina to skip image-heavy sections for faster response
         'X-Remove-Selector': 'img, figure, picture, video, iframe, .ad, .advertisement, .promo, [class*="related"], [class*="newsletter"], [class*="subscribe"]',
-        // Return only the main content, not boilerplate nav/footer
         'X-Return-Format': 'text',
       },
       signal: AbortSignal.timeout(READER_FETCH_TIMEOUT_MS),
     });
     if (!res.ok) return '';
-    const text = await res.text();
-    return text || '';
-  } catch {
-    return '';
-  }
+    return await res.text() || '';
+  } catch { return ''; }
 }
 
-// Parse Jina's Markdown/text output into the same {tag, text}[] format
-// that the rest of the reader pipeline expects. Jina returns clean prose
-// with Markdown headings (## / ###) so we just need a lightweight parser.
-function parseJinaText(raw) {
-  if (!raw || raw.length < 100) return [];
-
-  const lines = raw.split('\n');
-  const blocks = [];
-  let inFrontmatter = false;
-  let frontmatterDone = false;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-
-    // Skip Jina's YAML-like frontmatter block (Title: / URL: / Published: etc.)
-    if (i === 0 && line === '---') { inFrontmatter = true; continue; }
-    if (inFrontmatter) {
-      if (line === '---') { inFrontmatter = false; frontmatterDone = true; }
-      continue;
-    }
-
-    if (!line) continue;
-
-    // Headings
-    if (/^#{1,3}\s/.test(line)) {
-      const text = line.replace(/^#{1,3}\s+/, '').trim();
-      if (text.length > 3) blocks.push({ tag: 'h2', text });
-      continue;
-    }
-
-    // Skip lines that look like metadata, image captions, or Jina artifacts
-    if (/^(Title|URL|Published|Author|Source|Image):/i.test(line)) continue;
-    if (/^\[.*\]\(.*\)$/.test(line)) continue; // bare markdown link lines
-    if (line.startsWith('!['  )) continue;      // image lines
-    if (line.length < 30) continue;             // too short to be body text
-
-    // Strip inline markdown: bold, italic, links → plain text
-    const text = line
-      .replace(/\*\*(.+?)\*\*/g, '$1')
-      .replace(/\*(.+?)\*/g, '$1')
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-      .replace(/`(.+?)`/g, '$1')
-      .trim();
-
-    if (text.length >= 30) blocks.push({ tag: 'p', text });
-  }
-
-  // Deduplicate consecutive identical blocks (Jina occasionally repeats headings)
-  return blocks
-    .filter((b, i) => !i || b.text !== blocks[i - 1].text)
-    .slice(0, 200);
+// ── D1 feedback API ───────────────────────────────────────────
+// postFeedback is fire-and-forget; failures are silent so a flaky
+// network never blocks the UI interaction that triggered the call.
+async function postFeedback(articleId, { dismissed, rating } = {}) {
+  try {
+    await fetch(`${API_BASE}/api/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ articleId, deviceId: DEVICE_ID, dismissed, rating }),
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch { /* silent — never block the UI */ }
 }
 
+// Pull server-side dismiss list for this device and merge into
+// the local hiddenArticles map. Called once on startup so dismisses
+// made on other devices (or after a localStorage clear) come back.
+async function syncDismissesFromServer() {
+  try {
+    const res = await fetch(`${API_BASE}/api/state?device=${encodeURIComponent(DEVICE_ID)}`, {
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!Array.isArray(data.mine)) return;
+
+    let changed = false;
+    if (!hiddenArticles.__meta) hiddenArticles.__meta = {};
+
+    data.mine.forEach(row => {
+      if (row.dismissed && !hiddenArticles[row.article_id]) {
+        hiddenArticles[row.article_id] = true;
+        hiddenArticles.__meta[row.article_id] = Date.now();
+        changed = true;
+      }
+    });
+
+    if (changed) localStorage.setItem('sr_hidden', JSON.stringify(hiddenArticles));
+  } catch { /* D1 unavailable — local-only mode, no problem */ }
+}
+
+// ── Dismiss (local + D1) ──────────────────────────────────────
+function hideArticle(id) {
+  hiddenArticles[id] = true;
+  if (!hiddenArticles.__meta) hiddenArticles.__meta = {};
+  hiddenArticles.__meta[id] = Date.now();
+  localStorage.setItem('sr_hidden', JSON.stringify(hiddenArticles));
+  // Sync to D1 in the background — fire and forget
+  postFeedback(id, { dismissed: true });
+}
+
+// ── Hidden-article pruning ────────────────────────────────────
+function pruneHiddenArticles() {
+  const now = Date.now();
+  if (!hiddenArticles.__meta) hiddenArticles.__meta = {};
+  const currentIds = new Set(allArticles.map(a => a.id));
+  let changed = false;
+
+  Object.keys(hiddenArticles).forEach(id => {
+    if (id === '__meta') return;
+    if (!hiddenArticles.__meta[id]) { hiddenArticles.__meta[id] = now; changed = true; }
+  });
+  Object.keys(hiddenArticles).forEach(id => {
+    if (id === '__meta') return;
+    const hiddenAt = hiddenArticles.__meta[id] || now;
+    if (!currentIds.has(id) && (now - hiddenAt) > HIDDEN_RETENTION_MS) {
+      delete hiddenArticles[id];
+      delete hiddenArticles.__meta[id];
+      changed = true;
+    }
+  });
+
+  if (changed) localStorage.setItem('sr_hidden', JSON.stringify(hiddenArticles));
+}
+
+// ── RSS parsing ───────────────────────────────────────────────
 function resolveGoogleNewsLink(rawLink, sourceUrlAttr) {
   if (sourceUrlAttr && /^https?:\/\//.test(sourceUrlAttr)) return sourceUrlAttr;
   if (!rawLink) return rawLink;
@@ -343,192 +368,134 @@ function parseXml(xmlStr, feed, sourceType) {
   try {
     const doc = new DOMParser().parseFromString(xmlStr, 'application/xml');
     if (doc.querySelector('parsererror')) return [];
-
     return Array.from(doc.querySelectorAll('item')).map(el => {
-      let title = (el.querySelector('title')?.textContent || '').replace(/\s[-–]\s[^-–]{1,50}$/, '').trim();
-      let link = el.querySelector('link')?.textContent || el.querySelector('guid')?.textContent || '#';
+      let title = (el.querySelector('title')?.textContent||'').replace(/\s[-–]\s[^-–]{1,50}$/,'').trim();
+      let link  = el.querySelector('link')?.textContent || el.querySelector('guid')?.textContent || '#';
       const sourceEl = el.querySelector('source');
       let source = sourceEl?.textContent || feed.label;
-      if (sourceType === 'google') {
-        link = resolveGoogleNewsLink(link, sourceEl?.getAttribute('url'));
-      }
-      const publishedAt = new Date(el.querySelector('pubDate')?.textContent || '').getTime() || 0;
-      const excerpt = (new DOMParser().parseFromString(el.querySelector('description')?.textContent || '', 'text/html').body.textContent || '').trim().slice(0, 200);
-
+      if (sourceType === 'google') link = resolveGoogleNewsLink(link, sourceEl?.getAttribute('url'));
+      const publishedAt = new Date(el.querySelector('pubDate')?.textContent||'').getTime() || 0;
+      const excerpt = (new DOMParser().parseFromString(el.querySelector('description')?.textContent||'','text/html').body.textContent||'').trim().slice(0,200);
       if (!title || title.length < 6) return null;
-      const a = { feedId: feed.id, id: articleId({title}), title, link, source, publishedAt, excerpt };
-      return a;
+      return { feedId: feed.id, id: articleId({title}), title, link, source, publishedAt, excerpt };
     }).filter(Boolean);
   } catch { return []; }
 }
 
 async function fetchSource(source, feed) {
   let url = '';
-  if (source.type === 'bing') {
-    url = `https://www.bing.com/news/search?q=${encodeURIComponent(source.query)}&format=rss`;
-  } else if (source.type === 'google') {
-    url = `https://news.google.com/rss/search?q=${encodeURIComponent(source.query)}&hl=en-US&gl=US&ceid=US:en`;
-  } else if (source.type === 'direct') {
-    url = source.url;
-  } else {
-    url = source.url;
-  }
+  if      (source.type === 'bing')   url = `https://www.bing.com/news/search?q=${encodeURIComponent(source.query)}&format=rss`;
+  else if (source.type === 'google') url = `https://news.google.com/rss/search?q=${encodeURIComponent(source.query)}&hl=en-US&gl=US&ceid=US:en`;
+  else                               url = source.url;
 
   const body = await fetchUrl(url);
   if (!body) return [];
-
   let parsed = parseXml(body, feed, source.type);
-  if (source.type === 'direct' && source.source) {
-    parsed = parsed.map(a => ({ ...a, source: a.source || source.source }));
-  }
-  return parsed.filter(a => (Date.now() - a.publishedAt) <= MAX_AGE_MS && !isStockNoise(a));
+  if (source.type === 'direct' && source.source) parsed = parsed.map(a => ({...a, source: a.source||source.source}));
+  return parsed.filter(a => (Date.now()-a.publishedAt) <= MAX_AGE_MS && !isStockNoise(a));
 }
 
+// ── IndexedDB cache ───────────────────────────────────────────
 const idb = {
   async open() {
-    return new Promise((res, rej) => {
+    return new Promise((res,rej) => {
       const req = indexedDB.open('startup_radar_db', 1);
-      req.onupgradeneeded = () => {
-          if (!req.result.objectStoreNames.contains('articles')) {
-              req.result.createObjectStore('articles', { keyPath: 'id' });
-          }
-      };
+      req.onupgradeneeded = () => { if (!req.result.objectStoreNames.contains('articles')) req.result.createObjectStore('articles',{keyPath:'id'}); };
       req.onsuccess = () => res(req.result);
-      req.onerror = () => rej(req.error);
+      req.onerror   = () => rej(req.error);
     });
   },
   async get() {
-    try { const d = await this.open(); return await new Promise(r => d.transaction('articles').objectStore('articles').getAll().onsuccess = e => r(e.target.result)); } catch { return []; }
+    try { const d = await this.open(); return await new Promise(r => d.transaction('articles').objectStore('articles').getAll().onsuccess = e => r(e.target.result)); }
+    catch { return []; }
   },
   async put(arts) {
     try {
       const d = await this.open();
-      await new Promise((resolve, reject) => {
-        const tx = d.transaction('articles', 'readwrite');
-        const st = tx.objectStore('articles');
+      await new Promise((resolve,reject) => {
+        const tx = d.transaction('articles','readwrite'), st = tx.objectStore('articles');
         arts.forEach(a => st.put(a));
-        tx.oncomplete = resolve;
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(tx.error);
+        tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
       });
-      await new Promise((resolve, reject) => {
-        const tx2 = d.transaction('articles', 'readwrite');
-        const st2 = tx2.objectStore('articles');
-        st2.openCursor().onsuccess = e => {
-          const c = e.target.result;
-          if (c) {
-            if (Date.now() - c.value.publishedAt > MAX_AGE_MS) c.delete();
-            c.continue();
-          }
-        };
-        tx2.oncomplete = resolve;
-        tx2.onerror = () => reject(tx2.error);
-        tx2.onabort = () => reject(tx2.error);
+      await new Promise((resolve,reject) => {
+        const tx2 = d.transaction('articles','readwrite'), st2 = tx2.objectStore('articles');
+        st2.openCursor().onsuccess = e => { const c = e.target.result; if (c) { if (Date.now()-c.value.publishedAt > MAX_AGE_MS) c.delete(); c.continue(); } };
+        tx2.oncomplete = resolve; tx2.onerror = () => reject(tx2.error); tx2.onabort = () => reject(tx2.error);
       });
     } catch {}
   }
 };
 
-function pruneHiddenArticles() {
-  const now = Date.now();
-  if (!hiddenArticles.__meta) hiddenArticles.__meta = {};
-  const currentIds = new Set(allArticles.map(a => a.id));
-  let changed = false;
-
-  Object.keys(hiddenArticles).forEach(id => {
-    if (id === '__meta') return;
-    if (!hiddenArticles.__meta[id]) { hiddenArticles.__meta[id] = now; changed = true; }
-  });
-
-  Object.keys(hiddenArticles).forEach(id => {
-    if (id === '__meta') return;
-    const hiddenAt = hiddenArticles.__meta[id] || now;
-    const stale = !currentIds.has(id) && (now - hiddenAt) > HIDDEN_RETENTION_MS;
-    if (stale) {
-      delete hiddenArticles[id];
-      delete hiddenArticles.__meta[id];
-      changed = true;
-    }
-  });
-
-  if (changed) localStorage.setItem('sr_hidden', JSON.stringify(hiddenArticles));
-}
-
-function hideArticle(id) {
-  hiddenArticles[id] = true;
-  if (!hiddenArticles.__meta) hiddenArticles.__meta = {};
-  hiddenArticles.__meta[id] = Date.now();
-  localStorage.setItem('sr_hidden', JSON.stringify(hiddenArticles));
-}
-
+// ── Load ──────────────────────────────────────────────────────
 async function loadAll() {
   if (isLoading) return; isLoading = true;
   document.getElementById('progress-wrap').classList.add('visible');
   document.getElementById('refresh-btn').classList.add('spinning');
 
+  // Pull server-side dismisses first so they're in place before rendering
+  await syncDismissesFromServer();
+
   const local = await idb.get();
   if (local.length) { allArticles = local; renderTabs(); renderGrid(); }
 
-  const sources = FEEDS.flatMap(feed => feed.sources.map(src => ({ src, feed })));
-  const total = sources.length;
-  let done = 0;
+  const sources = FEEDS.flatMap(feed => feed.sources.map(src => ({src,feed})));
+  const total   = sources.length;
+  let done      = 0;
+  const merged  = new Map(allArticles.map(a => [a.id, a]));
 
-  const merged = new Map(allArticles.map(a => [a.id, a]));
-
-  const fetchPromises = sources.map(async ({ src, feed }) => {
+  const fetchPromises = sources.map(async ({src, feed}) => {
     try {
       const items = await fetchSource(src, feed);
       items.forEach(a => {
         const existing = merged.get(a.id);
-        if (existing && a.excerpt === '' && existing.excerpt !== '') return;
+        if (existing && a.excerpt==='' && existing.excerpt!=='') return;
         merged.set(a.id, a);
       });
-      allArticles = [...merged.values()].sort((a, b) => b.publishedAt - a.publishedAt);
-    } catch (e) {
-      console.warn('Source failed:', src, e);
-    } finally {
+      allArticles = [...merged.values()].sort((a,b) => b.publishedAt-a.publishedAt);
+    } catch(e) { console.warn('Source failed:',src,e); }
+    finally {
       done++;
-      document.getElementById('progress-bar').style.width = `${Math.round((done / total) * 100)}%`;
-      renderTabs();
-      renderGrid();
+      document.getElementById('progress-bar').style.width = `${Math.round((done/total)*100)}%`;
+      renderTabs(); renderGrid();
     }
   });
 
   await Promise.allSettled(fetchPromises);
-
   pruneHiddenArticles();
   idb.put(allArticles);
   document.getElementById('progress-wrap').classList.remove('visible');
   document.getElementById('refresh-btn').classList.remove('spinning');
-  document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
   isLoading = false;
 }
 
+// ── Render ────────────────────────────────────────────────────
 function visibleList() {
   return allArticles
     .filter(a => !hiddenArticles[a.id])
-    .filter(a => activeTab === 'all' || a.feedId === activeTab);
+    .filter(a => activeTab==='all' || a.feedId===activeTab);
 }
 
 function renderTabs() {
-  const counts = { all: 0 };
-  allArticles.filter(a => !hiddenArticles[a.id]).forEach(a => { counts.all++; counts[a.feedId] = (counts[a.feedId] || 0) + 1; });
-  const defs = [{ id: 'all', label: 'All', color: '#1A1511', count: counts.all }, ...FEEDS.map(f => ({ id: f.id, label: f.label, color: f.color, count: counts[f.id] || 0 }))];
-  document.getElementById('tabs').innerHTML = defs.map(t => `<div class="tab ${t.id === activeTab ? 'active' : ''}" data-tab="${t.id}"><span class="tab-dot" style="background:${t.color}"></span>${t.label} <span class="tab-count">${t.count}</span></div>`).join('');
+  const counts = {all:0};
+  allArticles.filter(a => !hiddenArticles[a.id]).forEach(a => { counts.all++; counts[a.feedId]=(counts[a.feedId]||0)+1; });
+  const defs = [{id:'all',label:'All',color:'#1A1511',count:counts.all}, ...FEEDS.map(f=>({id:f.id,label:f.label,color:f.color,count:counts[f.id]||0}))];
+  document.getElementById('tabs').innerHTML = defs.map(t =>
+    `<div class="tab ${t.id===activeTab?'active':''}" data-tab="${t.id}"><span class="tab-dot" style="background:${t.color}"></span>${t.label} <span class="tab-count">${t.count}</span></div>`
+  ).join('');
 }
 
 function renderGrid() {
   const grid = document.getElementById('grid'), list = visibleList();
-  if (!list.length) return grid.innerHTML = `<div class="empty">No articles yet. Click Refresh to scan.</div>`;
-
+  if (!list.length) return void (grid.innerHTML = `<div class="empty">No articles yet. Click Refresh to scan.</div>`);
   grid.innerHTML = list.map(a => {
-    const f = FEEDS.find(x => x.id === a.feedId) || FEEDS[0];
+    const f = FEEDS.find(x => x.id===a.feedId)||FEEDS[0];
     return `<div class="card-wrap" data-id="${a.id}">
       <div class="card-under">Hidden</div>
       <div class="card" data-id="${a.id}">
         <div class="card-top"><span class="badge" style="color:${f.color};background:${f.bg}">${f.label}</span><span class="card-src">${escHtml(a.source)}</span></div>
         <div class="card-title"><a href="${escHtml(a.link)}" target="_blank">${escHtml(a.title)}</a></div>
-        ${a.excerpt ? `<div class="card-excerpt">${escHtml(a.excerpt)}</div>` : ''}
+        ${a.excerpt?`<div class="card-excerpt">${escHtml(a.excerpt)}</div>`:''}
         <div class="card-foot">
           <span class="card-date">${relTime(a.publishedAt)}</span>
           <div class="card-actions">
@@ -541,154 +508,157 @@ function renderGrid() {
   }).join('');
 }
 
-document.getElementById('tabs').addEventListener('click', e => { const t = e.target.closest('[data-tab]'); if (t) { activeTab = t.dataset.tab; renderTabs(); renderGrid(); }});
+document.getElementById('tabs').addEventListener('click', e => {
+  const t = e.target.closest('[data-tab]');
+  if (t) { activeTab = t.dataset.tab; renderTabs(); renderGrid(); }
+});
 document.getElementById('refresh-btn').addEventListener('click', loadAll);
 
-// Touch Swipe to Hide
-let swipe = null; const grid = document.getElementById('grid');
-grid.addEventListener('touchstart', e => { const c = e.target.closest('.card'); if (c && !e.target.closest('a, button')) swipe = { card: c, x0: e.touches[0].clientX, dx: 0, active: false }; }, { passive: true });
+// ── Touch swipe to dismiss ────────────────────────────────────
+let swipe = null;
+const grid = document.getElementById('grid');
+
+grid.addEventListener('touchstart', e => {
+  const c = e.target.closest('.card');
+  if (c && !e.target.closest('a, button')) swipe = {card:c, x0:e.touches[0].clientX, dx:0, active:false};
+}, {passive:true});
+
 grid.addEventListener('touchmove', e => {
-  if (!swipe) return; swipe.dx = e.touches[0].clientX - swipe.x0;
-  if (!swipe.active && Math.abs(swipe.dx) > 15) { swipe.active = true; swipe.card.closest('.card-wrap').classList.add('swipe-on'); }
+  if (!swipe) return;
+  swipe.dx = e.touches[0].clientX - swipe.x0;
+  if (!swipe.active && Math.abs(swipe.dx) > 15) { swipe.active=true; swipe.card.closest('.card-wrap').classList.add('swipe-on'); }
   if (swipe.active) swipe.card.style.transform = `translateX(${swipe.dx}px)`;
-}, { passive: true });
+}, {passive:true});
+
 grid.addEventListener('touchend', () => {
   if (!swipe || !swipe.active) return;
-  const { card, dx } = swipe; swipe = null;
+  const {card, dx} = swipe; swipe = null;
   if (Math.abs(dx) > 100) {
+    // hideArticle handles both localStorage AND D1 sync
     hideArticle(card.dataset.id);
-    card.classList.add('flying'); card.style.transform = `translateX(${(dx > 0 ? 1 : -1) * 500}px)`;
+    card.classList.add('flying');
+    card.style.transform = `translateX(${(dx>0?1:-1)*500}px)`;
     setTimeout(() => { renderTabs(); renderGrid(); }, 300);
-  } else { card.style.transform = ''; card.closest('.card-wrap').classList.remove('swipe-on'); }
+  } else {
+    card.style.transform = '';
+    card.closest('.card-wrap').classList.remove('swipe-on');
+  }
 });
 
-// ---------- READER VIEW + PDF ----------
+// ── Reader view ───────────────────────────────────────────────
 let readerArticle = null, readerParas = [];
 
+function parseJinaText(raw) {
+  if (!raw || raw.length < 100) return [];
+  const lines = raw.split('\n');
+  const blocks = [];
+  let inFrontmatter = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (i===0 && line==='---') { inFrontmatter=true; continue; }
+    if (inFrontmatter) { if (line==='---') inFrontmatter=false; continue; }
+    if (!line) continue;
+    if (/^#{1,3}\s/.test(line)) { const text=line.replace(/^#{1,3}\s+/,'').trim(); if (text.length>3) blocks.push({tag:'h2',text}); continue; }
+    if (/^(Title|URL|Published|Author|Source|Image):/i.test(line)) continue;
+    if (/^\[.*\]\(.*\)$/.test(line) || line.startsWith('![')) continue;
+    if (line.length < 30) continue;
+    const text = line.replace(/\*\*(.+?)\*\*/g,'$1').replace(/\*(.+?)\*/g,'$1').replace(/\[([^\]]+)\]\([^)]+\)/g,'$1').replace(/`(.+?)`/g,'$1').trim();
+    if (text.length >= 30) blocks.push({tag:'p',text});
+  }
+  return blocks.filter((b,i) => !i || b.text!==blocks[i-1].text).slice(0,200);
+}
+
+function extractArticleHtml(html) {
+  const doc = new DOMParser().parseFromString(html,'text/html');
+  doc.querySelectorAll('script,style,noscript,nav,header,footer,aside,form,iframe,svg,button,[role="navigation"],[class*="related"],[class*="newsletter"],[class*="subscribe"],[class*="promo"],[class*="comment"]').forEach(n=>n.remove());
+  let best = doc.querySelector('article');
+  if (!best) {
+    let bestLen=0;
+    doc.querySelectorAll('main,section,div').forEach(el => { let len=0; el.querySelectorAll('p').forEach(p=>len+=(p.textContent||'').length); if(len>bestLen){bestLen=len;best=el;} });
+  }
+  if (!best) best = doc.body;
+  const out=[];
+  best.querySelectorAll('h1,h2,h3,p,li,blockquote').forEach(el => {
+    const txt=(el.textContent||'').replace(/\s+/g,' ').trim();
+    if(txt.length<30 && !/^h[1-3]$/i.test(el.tagName)) return;
+    if(txt.length<4) return;
+    out.push({tag:/^h[1-3]$/i.test(el.tagName)?'h2':'p',text:txt});
+  });
+  return out.filter((b,i)=>!i||b.text!==out[i-1].text).slice(0,220);
+}
+
 async function openReader(id) {
-  const a = allArticles.find(x => x.id === id);
+  const a = allArticles.find(x => x.id===id);
   if (!a) return;
   readerArticle = a; readerParas = [];
-
-  document.getElementById('reader-title').textContent = a.source || '';
+  document.getElementById('reader-title').textContent = a.source||'';
   const inner = document.getElementById('reader-inner');
   inner.innerHTML = `<h1>${escHtml(a.title)}</h1>
     <div class="reader-meta">${escHtml(a.source)} · ${relTime(a.publishedAt)} · <a href="${escHtml(a.link)}" target="_blank" rel="noopener">original article</a></div>
     <div class="reader-loading">Fetching article…</div>`;
   document.getElementById('reader').classList.add('open');
 
-  // Strategy 1: Jina Reader API — handles JS-rendered pages, most bot blocks
   const jinaText = await fetchViaJina(a.link);
+  if (!readerArticle || readerArticle.id!==id) return;
+  if (jinaText) readerParas = parseJinaText(jinaText);
 
-  // Guard: user may have closed reader while fetch was in flight
-  if (!readerArticle || readerArticle.id !== id) return;
-
-  if (jinaText) {
-    readerParas = parseJinaText(jinaText);
-  }
-
-  // Strategy 2: if Jina returned nothing usable, fall back to raw proxy fetch
-  // with the old HTML extraction heuristic. This covers paywalled or Jina-blocked
-  // sites where at least the raw HTML has some readable server-side content.
   if (!readerParas.length) {
     const html = await fetchUrl(a.link);
-    if (!readerArticle || readerArticle.id !== id) return;
+    if (!readerArticle || readerArticle.id!==id) return;
     if (html) readerParas = extractArticleHtml(html);
   }
 
   const loadingEl = inner.querySelector('.reader-loading');
-
   if (!readerParas.length) {
     if (loadingEl) loadingEl.outerHTML = `<div class="reader-blocked">
-      <p>This article couldn't be fetched for reading — the site may require a subscription or block automated access.</p>
+      <p>This article couldn't be fetched — the site may require a subscription or block automated access.</p>
       <p><a href="${escHtml(a.link)}" target="_blank" rel="noopener">Open the original article →</a></p>
     </div>`;
     return;
   }
-
   if (loadingEl) loadingEl.remove();
-  inner.insertAdjacentHTML('beforeend', readerParas.map(b => `<${b.tag}>${escHtml(b.text)}</${b.tag}>`).join(''));
+  inner.insertAdjacentHTML('beforeend', readerParas.map(b=>`<${b.tag}>${escHtml(b.text)}</${b.tag}>`).join(''));
 }
 
-// Fallback HTML extraction (used only if Jina fails)
-function extractArticleHtml(html) {
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  doc.querySelectorAll('script, style, noscript, nav, header, footer, aside, form, iframe, svg, button, [role="navigation"], [class*="related"], [class*="newsletter"], [class*="subscribe"], [class*="promo"], [class*="comment"]').forEach(n => n.remove());
-  let best = doc.querySelector('article');
-  if (!best) {
-    let bestLen = 0;
-    doc.querySelectorAll('main, section, div').forEach(el => {
-      let len = 0;
-      el.querySelectorAll('p').forEach(p => len += (p.textContent || '').length);
-      if (len > bestLen) { bestLen = len; best = el; }
-    });
-  }
-  if (!best) best = doc.body;
-  const out = [];
-  best.querySelectorAll('h1, h2, h3, p, li, blockquote').forEach(el => {
-    const txt = (el.textContent || '').replace(/\s+/g, ' ').trim();
-    if (txt.length < 30 && !/^h[1-3]$/i.test(el.tagName)) return;
-    if (txt.length < 4) return;
-    out.push({ tag: /^h[1-3]$/i.test(el.tagName) ? 'h2' : 'p', text: txt });
-  });
-  return out.filter((b, i) => !i || b.text !== out[i - 1].text).slice(0, 220);
-}
+function closeReader() { document.getElementById('reader').classList.remove('open'); readerArticle=null; }
 
-function closeReader() { document.getElementById('reader').classList.remove('open'); readerArticle = null; }
-
+// ── PDF export ────────────────────────────────────────────────
 let jsPdfPromise = null;
 function loadJsPdf() {
   if (window.jspdf) return Promise.resolve();
-  if (!jsPdfPromise) {
-    jsPdfPromise = new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-      s.onload = resolve; s.onerror = reject;
-      document.head.appendChild(s);
-    });
-  }
+  if (!jsPdfPromise) jsPdfPromise = new Promise((resolve,reject) => {
+    const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.onload=resolve; s.onerror=reject; document.head.appendChild(s);
+  });
   return jsPdfPromise;
 }
 
 async function downloadPdf() {
   if (!readerArticle) return;
-  try { await loadJsPdf(); } catch { alert('PDF library failed to load (offline?). Try Print instead.'); return; }
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
-  const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
-  const M = 54, maxW = W - M * 2;
-  let y = M;
-
-  const addPageIfNeeded = (h) => { if (y + h > H - M) { doc.addPage(); y = M; } };
-
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(16);
-  for (const line of doc.splitTextToSize(readerArticle.title, maxW)) { addPageIfNeeded(20); doc.text(line, M, y); y += 20; }
-  y += 4;
-
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(120);
-  const meta = `${readerArticle.source || ''} · ${new Date(readerArticle.publishedAt || Date.now()).toLocaleDateString()} · ${readerArticle.link}`;
-  for (const line of doc.splitTextToSize(meta, maxW)) { addPageIfNeeded(12); doc.text(line, M, y); y += 12; }
-  y += 10; doc.setDrawColor(200); doc.line(M, y, W - M, y); y += 18;
-  doc.setTextColor(30);
-
-  const blocks = readerParas.length ? readerParas : [{ tag: 'p', text: readerArticle.excerpt || '(Full text was not available — excerpt only.)' }];
-  for (const b of blocks) {
-    if (b.tag === 'h2') { doc.setFont('helvetica', 'bold'); doc.setFontSize(12); y += 6; }
-    else { doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); }
-    const lines = doc.splitTextToSize(b.text, maxW);
-    for (const line of lines) { addPageIfNeeded(15); doc.text(line, M, y); y += 15; }
-    y += 6;
+  try { await loadJsPdf(); } catch { alert('PDF library failed to load. Try Print instead.'); return; }
+  const {jsPDF}=window.jspdf, doc=new jsPDF({unit:'pt',format:'letter'});
+  const W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight(), M=54, maxW=W-M*2;
+  let y=M;
+  const add=(h)=>{ if(y+h>H-M){doc.addPage();y=M;} };
+  doc.setFont('helvetica','bold'); doc.setFontSize(16);
+  for(const l of doc.splitTextToSize(readerArticle.title,maxW)){add(20);doc.text(l,M,y);y+=20;}
+  y+=4; doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(120);
+  const meta=`${readerArticle.source||''} · ${new Date(readerArticle.publishedAt||Date.now()).toLocaleDateString()} · ${readerArticle.link}`;
+  for(const l of doc.splitTextToSize(meta,maxW)){add(12);doc.text(l,M,y);y+=12;}
+  y+=10; doc.setDrawColor(200); doc.line(M,y,W-M,y); y+=18; doc.setTextColor(30);
+  const blocks=readerParas.length?readerParas:[{tag:'p',text:readerArticle.excerpt||'(Full text not available — excerpt only.)'}];
+  for(const b of blocks){
+    if(b.tag==='h2'){doc.setFont('helvetica','bold');doc.setFontSize(12);y+=6;}
+    else{doc.setFont('helvetica','normal');doc.setFontSize(10.5);}
+    for(const l of doc.splitTextToSize(b.text,maxW)){add(15);doc.text(l,M,y);y+=15;}
+    y+=6;
   }
-
   doc.setFontSize(8); doc.setTextColor(150);
-  const safe = (readerArticle.title || 'article').replace(/[^a-z0-9]+/gi, '-').slice(0, 60);
-  doc.save(`${safe}.pdf`);
+  doc.save((readerArticle.title||'article').replace(/[^a-z0-9]+/gi,'-').slice(0,60)+'.pdf');
 }
 
-grid.addEventListener('click', e => {
-  const rd = e.target.closest('[data-reader]');
-  if (rd) openReader(rd.dataset.reader);
-});
+grid.addEventListener('click', e => { const rd=e.target.closest('[data-reader]'); if(rd) openReader(rd.dataset.reader); });
 document.getElementById('reader-close').addEventListener('click', closeReader);
 document.getElementById('reader-print').addEventListener('click', () => window.print());
 document.getElementById('reader-pdf').addEventListener('click', downloadPdf);
