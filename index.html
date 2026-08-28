@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Startup Radar | Where companies are being built</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --ground:#F1F2F3; --surface:#FCFCFB; --surface-2:#E9EAEC;
+  --ink:#15181B; --ink-2:#3D454C; --muted:#6B747C;
+  --rule:#D6D9DC; --rule-strong:#B4BAC0;
+  --now:#BE7F09; --then:#2A72B2; --now-wash:rgba(190,127,9,.13);
+  --up:#1F7A5C; --down:#B4472F;
+  --inverse-ground:#15181B; --inverse-ink:#EDEEEF; --inverse-muted:#9AA2A9; --inverse-rule:#2E3439;
+  --display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --ui:"Inter",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --radius:10px;
+  --shadow:0 1px 3px rgba(21,24,27,.06),0 2px 8px rgba(21,24,27,.04);
+  --pad:clamp(1rem,4vw,2.4rem);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#131414; --surface:#1A1A19; --surface-2:#232424;
+    --ink:#EDEDEB; --ink-2:#C3C5C3; --muted:#8B908F;
+    --rule:#2C2E2E; --rule-strong:#424545;
+    --now:#D69A2B; --then:#4A93D2; --now-wash:rgba(214,154,43,.16);
+    --up:#3FA37C; --down:#D26950;
+    --inverse-ground:#232424; --inverse-ink:#EDEDEB; --inverse-muted:#8B908F; --inverse-rule:#3A3C3C;
+    --shadow:0 1px 3px rgba(0,0,0,.4),0 2px 8px rgba(0,0,0,.25);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#131414; --surface:#1A1A19; --surface-2:#232424;
+  --ink:#EDEDEB; --ink-2:#C3C5C3; --muted:#8B908F;
+  --rule:#2C2E2E; --rule-strong:#424545;
+  --now:#D69A2B; --then:#4A93D2; --now-wash:rgba(214,154,43,.16);
+  --up:#3FA37C; --down:#D26950;
+  --inverse-ground:#232424; --inverse-ink:#EDEDEB; --inverse-muted:#8B908F; --inverse-rule:#3A3C3C;
+  --shadow:0 1px 3px rgba(0,0,0,.4),0 2px 8px rgba(0,0,0,.25);
+}
+
+body{font-family:var(--ui);background:var(--ground);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased;font-size:15px;line-height:1.55}
+a{color:inherit}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--mono);font-size:.66rem;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+h1,h2,h3{font-family:var(--display);text-wrap:balance}
+
+/* ---------- header ---------- */
+header.top{background:var(--inverse-ground);color:var(--inverse-ink);padding:12px var(--pad);position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--inverse-rule)}
+.hl{display:flex;align-items:center;gap:11px;min-width:0}
+.logo{width:34px;height:34px;border-radius:8px;flex:none;background:var(--now);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:14px;font-weight:800;color:#15181B;letter-spacing:-.5px}
+.htitle{font-family:var(--display);font-size:15px;font-weight:700;letter-spacing:-.01em}
+.hsub{font-size:11px;color:var(--inverse-muted);margin-top:1px}
+.hr{display:flex;align-items:center;gap:9px;flex:none}
+#stamp{font-family:var(--mono);font-size:10.5px;color:var(--inverse-muted);white-space:nowrap}
+.ghost{background:transparent;color:var(--inverse-ink);border:1px solid var(--inverse-rule);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit;transition:background .15s}
+.ghost:hover{background:var(--inverse-rule)}
+.ghost.spin svg{animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ---------- primary nav ---------- */
+.nav{background:var(--surface);border-bottom:1px solid var(--rule);position:sticky;top:59px;z-index:90;display:flex;padding:0 var(--pad);gap:2px;overflow-x:auto;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav button{background:none;border:none;border-bottom:2px solid transparent;font-family:var(--display);font-size:13.5px;font-weight:600;letter-spacing:-.01em;color:var(--muted);padding:12px 14px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:7px;transition:color .15s,border-color .15s}
+.nav button:hover{color:var(--ink)}
+.nav button.on{color:var(--ink);border-bottom-color:var(--now)}
+.pill{font-family:var(--mono);font-size:9.5px;font-weight:600;background:var(--surface-2);color:var(--muted);padding:2px 6px;border-radius:20px;letter-spacing:.03em}
+.nav button.on .pill{background:var(--now-wash);color:var(--now)}
+
+main{max-width:1120px;margin:0 auto;padding:22px var(--pad) 72px}
+.view{display:none}
+.view.on{display:block;animation:fade .28s ease}
+@keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+/* ---------- section furniture ---------- */
+.sec{margin-top:clamp(2.4rem,5vw,3.6rem)}
+.sec:first-child{margin-top:0}
+.sec-head{display:flex;align-items:baseline;gap:.9rem;border-top:1.5px solid var(--ink);padding-top:.7rem;margin-bottom:1.3rem;flex-wrap:wrap}
+.sec-head h2{font-size:clamp(1.25rem,2.4vw,1.7rem);font-weight:700;letter-spacing:-.02em;line-height:1.15}
+.sec-head .eyebrow{margin-left:auto}
+.lead{color:var(--ink-2);max-width:66ch;font-size:15.5px}
+
+/* ---------- loading / empty ---------- */
+.skel{padding:56px 20px;text-align:center;color:var(--muted);font-size:14px}
+.err{padding:20px;border:1px solid var(--rule);border-radius:var(--radius);background:var(--surface);color:var(--muted);font-size:14px}
+</style>
+<style>
+/* ============ BRIEF ============ */
+.brief-mast{border-bottom:1.5px solid var(--ink);padding-bottom:1rem;margin-bottom:1.6rem}
+.brief-mast .row{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:.8rem}
+.brief-mast h1{font-size:clamp(1.7rem,4.2vw,2.7rem);font-weight:800;letter-spacing:-.03em;line-height:1.08;max-width:24ch}
+.brief-headline{font-family:var(--display);font-size:clamp(1.05rem,2vw,1.3rem);font-weight:600;letter-spacing:-.015em;line-height:1.4;color:var(--ink-2);max-width:60ch;margin-top:.9rem}
+.brief-headline b{color:var(--now)}
+
+.bsec{margin-top:2.2rem}
+.bsec-h{display:flex;align-items:baseline;gap:.8rem;margin-bottom:.5rem;flex-wrap:wrap}
+.bsec-h h3{font-size:1.05rem;font-weight:700;letter-spacing:-.015em}
+.bsec-lead{color:var(--muted);font-size:13.5px;max-width:66ch;margin-bottom:1rem}
+.blist{display:flex;flex-direction:column;border-top:1px solid var(--rule)}
+.bitem{display:grid;grid-template-columns:auto 1fr auto;gap:.55rem .9rem;padding:.85rem 0;border-bottom:1px solid var(--rule);align-items:baseline}
+.bmark{font-family:var(--mono);font-size:.62rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:20px;white-space:nowrap;align-self:start;margin-top:1px}
+.bmark.up,.bmark.closing{background:var(--now-wash);color:var(--now)}
+.bmark.down,.bmark.cooling{background:rgba(107,116,124,.14);color:var(--muted)}
+.bmark.open{background:rgba(31,122,92,.14);color:var(--up)}
+.bmark.new{background:rgba(42,114,178,.14);color:var(--then)}
+.bmark.news{background:var(--surface-2);color:var(--muted)}
+.bitem .lbl{font-weight:600;font-size:14.5px;letter-spacing:-.005em;line-height:1.4}
+.bitem .lbl a{text-decoration:none}
+.bitem .lbl a:hover{color:var(--now)}
+.bitem .det{grid-column:2;font-size:13px;color:var(--muted);line-height:1.5;margin-top:-.3rem}
+.bitem .stat{font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+
+/* ============ LANDSCAPE ============ */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);margin-top:1.1rem}
+.tile{background:var(--surface);padding:1rem 1.05rem 1.1rem;display:flex;flex-direction:column;gap:.25rem}
+.tile .v{font-family:var(--display);font-size:2.05rem;font-weight:800;letter-spacing:-.035em;line-height:1;font-variant-numeric:tabular-nums}
+.tile .v.hi{color:var(--now)}
+.tile .k{font-family:var(--mono);font-size:.62rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);line-height:1.45}
+.tile .d{font-family:var(--mono);font-size:.66rem;font-weight:600}
+.tile .d.up{color:var(--now)} .tile .d.down{color:var(--muted)}
+
+.chart{background:var(--surface);border:1px solid var(--rule);padding:clamp(1rem,3vw,1.7rem);overflow-x:auto}
+.legend{display:flex;gap:1.3rem;flex-wrap:wrap;margin-bottom:1.3rem}
+.legend span{display:flex;align-items:center;gap:.45rem;font-family:var(--mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.swatch{width:11px;height:11px;border-radius:2px;flex:none}
+.rows{display:flex;flex-direction:column;gap:1.05rem;min-width:420px}
+.brow{display:grid;grid-template-columns:minmax(140px,1fr) 3fr;gap:1rem;align-items:center}
+.brow .lab{font-family:var(--display);font-size:.84rem;font-weight:600;line-height:1.25}
+.pair{display:flex;flex-direction:column;gap:2px}
+.bar{display:flex;align-items:center;gap:.5rem;height:15px}
+.bar .fill{height:11px;border-radius:0 3px 3px 0;flex:none;min-width:2px;transition:filter .15s}
+.bar .fill.then{background:var(--then)}
+.bar .fill.now{background:var(--now);height:15px;border-radius:0 4px 4px 0}
+.bar:hover .fill{filter:brightness(1.12)}
+.bar .val{font-family:var(--mono);font-size:.71rem;color:var(--muted);white-space:nowrap}
+.bar .val b{color:var(--ink);font-weight:600}
+.chart-note{margin-top:1.2rem;padding-top:.9rem;border-top:1px solid var(--rule);font-family:var(--mono);font-size:.68rem;line-height:1.6;color:var(--muted);max-width:72ch}
+
+.themes{display:flex;flex-direction:column}
+.theme{display:grid;grid-template-columns:minmax(0,116px) minmax(0,1fr);gap:clamp(.9rem,3vw,2rem);padding:1.7rem 0;border-top:1px solid var(--rule)}
+.theme:first-child{border-top:none;padding-top:.3rem}
+.metric{display:flex;flex-direction:column;gap:.15rem;align-self:start}
+.metric .m-v{font-family:var(--display);font-size:1.65rem;font-weight:800;letter-spacing:-.03em;line-height:1;color:var(--now);font-variant-numeric:tabular-nums}
+.metric .m-k{font-family:var(--mono);font-size:.58rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);line-height:1.45}
+.metric .m-d{font-family:var(--mono);font-size:.66rem;font-weight:600;margin-top:.2rem}
+.theme-body{display:flex;flex-direction:column;gap:.7rem;max-width:64ch}
+.theme-body h3{font-size:1.08rem;font-weight:700;letter-spacing:-.012em;line-height:1.25}
+.theme-body p{color:var(--ink-2);font-size:14.5px}
+.roster{font-family:var(--mono);font-size:.72rem;line-height:1.9;color:var(--muted);border-left:2px solid var(--now);padding-left:.85rem;margin-top:.15rem}
+.roster b{color:var(--ink);font-weight:600}
+.roster a{text-decoration:none}
+.roster a:hover b{color:var(--now)}
+
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(238px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule)}
+.cell{background:var(--surface);padding:1.15rem;display:flex;flex-direction:column;gap:.4rem}
+.c-k{font-family:var(--mono);font-size:.63rem;letter-spacing:.09em;text-transform:uppercase;color:var(--now);font-weight:600}
+.c-t{font-family:var(--display);font-size:1rem;font-weight:700;letter-spacing:-.012em;line-height:1.25}
+.c-d{font-size:13px;color:var(--muted);line-height:1.55}
+
+.gaps{display:flex;flex-direction:column;border-top:1px solid var(--rule)}
+.gap{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1.25fr);gap:clamp(.8rem,3vw,2rem);padding:1.25rem 0;border-bottom:1px solid var(--rule);align-items:start}
+.g-l{display:flex;flex-direction:column;gap:.45rem}
+.g-top{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.g-n{font-family:var(--mono);font-size:.68rem;color:var(--muted);font-weight:600}
+.heat{font-family:var(--mono);font-size:.6rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:20px}
+.heat.crowded{background:rgba(180,71,47,.14);color:var(--down)}
+.heat[data-h="filling fast"]{background:var(--now-wash);color:var(--now)}
+.heat.open{background:rgba(31,122,92,.14);color:var(--up)}
+.heat.steady,.heat.cooling{background:var(--surface-2);color:var(--muted)}
+.g-t{font-family:var(--display);font-size:1rem;font-weight:700;letter-spacing:-.012em;line-height:1.3}
+.g-stat{font-family:var(--mono);font-size:.7rem;color:var(--muted)}
+.g-r{font-size:14px;color:var(--ink-2);line-height:1.6}
+
+.inverse{background:var(--inverse-ground);color:var(--inverse-ink);padding:clamp(1.4rem,4vw,2.4rem);margin-top:clamp(2.4rem,5vw,3.6rem)}
+.inverse .sec-head{border-top-color:var(--inverse-ink)}
+.inverse .sec-head h2{color:var(--inverse-ink)}
+.inverse .eyebrow{color:var(--inverse-muted)}
+.thin{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1.4rem}
+.thin > div{display:flex;flex-direction:column;gap:.3rem}
+.t-v{font-family:var(--display);font-size:1.9rem;font-weight:800;letter-spacing:-.035em;line-height:1;color:var(--now)}
+.t-k{font-family:var(--mono);font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:var(--inverse-muted);line-height:1.5}
+.method{margin-top:2.4rem;padding-top:1.1rem;border-top:1px solid var(--rule);font-size:12.5px;line-height:1.65;color:var(--muted);max-width:78ch;display:flex;flex-direction:column;gap:.6rem}
+.method b{color:var(--ink-2)}
+.method a{color:var(--then)}
+</style>
+<style>
+/* ============ FEED (radar) ============ */
+.subtabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;margin-bottom:1.2rem;border-bottom:1px solid var(--rule)}
+.subtabs::-webkit-scrollbar{display:none}
+.subtab{padding:9px 13px;font-size:12.5px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit}
+.subtab:hover{color:var(--ink)}
+.subtab.on{color:var(--ink);border-bottom-color:var(--dot,var(--now))}
+.dot{width:7px;height:7px;border-radius:50%;flex:none}
+#progress-wrap{height:3px;background:var(--rule);border-radius:2px;margin-bottom:16px;overflow:hidden;display:none}
+#progress-wrap.visible{display:block}
+#progress-bar{height:100%;width:4%;background:var(--now);border-radius:2px;transition:width .4s ease}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(298px,1fr));gap:13px}
+.card-wrap{position:relative;overflow:hidden;border-radius:var(--radius)}
+.card-under{position:absolute;inset:0;background:var(--down);border-radius:var(--radius);display:flex;align-items:center;justify-content:flex-end;padding-right:22px;color:#fff;font-size:13px;font-weight:600;opacity:0;pointer-events:none}
+.card-wrap.swipe-on .card-under{opacity:1}
+.card{position:relative;background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius);box-shadow:var(--shadow);padding:15px 16px;display:flex;flex-direction:column;gap:8px;touch-action:pan-y;will-change:transform;min-height:100%}
+.card.flying{transition:transform .25s ease,opacity .25s ease;opacity:0}
+.card-top{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.badge{font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:20px}
+.card-src{font-size:11px;color:var(--muted);margin-left:auto;font-weight:500;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-title{font-size:14px;font-weight:600;line-height:1.45}
+.card-title a{text-decoration:none}
+.card-title a:hover{color:var(--now)}
+.card-excerpt{font-size:12.5px;color:var(--muted);line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.card-foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;padding-top:4px;gap:8px}
+.card-date{font-family:var(--mono);font-size:10.5px;color:var(--muted);white-space:nowrap}
+.card-actions{display:flex;align-items:center;gap:12px}
+.act-btn{font-size:12px;font-weight:600;color:var(--then);text-decoration:none;background:none;border:none;cursor:pointer;font-family:inherit;padding:2px 0}
+.act-btn:hover{opacity:.75}
+.empty{grid-column:1/-1;text-align:center;padding:56px 20px;color:var(--muted);font-size:14px}
+
+/* ============ READER ============ */
+#reader{position:fixed;inset:0;background:var(--ground);z-index:400;display:none;flex-direction:column}
+#reader.open{display:flex}
+.reader-bar{background:var(--inverse-ground);color:var(--inverse-ink);padding:11px var(--pad);display:flex;align-items:center;gap:9px;flex:none}
+.reader-bar .title{font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;color:var(--inverse-muted)}
+#reader-body{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:26px var(--pad) 80px}
+.reader-inner{max-width:680px;margin:0 auto}
+.reader-inner h1{font-size:clamp(1.4rem,3.4vw,1.9rem);line-height:1.22;margin-bottom:10px;font-weight:800;letter-spacing:-.025em}
+.reader-meta{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-bottom:20px;padding-bottom:13px;border-bottom:1px solid var(--rule)}
+.reader-meta a{color:var(--then)}
+.reader-inner p{font-size:15.5px;line-height:1.72;margin-bottom:14px;color:var(--ink-2)}
+.reader-inner h2{font-family:var(--display);font-size:1.15rem;margin:22px 0 10px;font-weight:700}
+.reader-loading,.reader-blocked{text-align:center;padding:52px 16px;color:var(--muted);font-size:14px;line-height:1.6}
+.reader-blocked a{color:var(--then);font-weight:600;text-decoration:none}
+
+@media print{
+  header.top,.nav,main{display:none!important}
+  #reader{position:static;display:block!important;background:#fff}
+  .reader-bar{display:none!important}
+  #reader-body{overflow:visible;padding:0}
+  .reader-inner p{color:#000}
+}
+@media (max-width:640px){
+  .theme{grid-template-columns:1fr;gap:.7rem}
+  .metric{flex-direction:row;align-items:baseline;gap:.5rem}
+  .metric .m-k{max-width:none}
+  .gap{grid-template-columns:1fr;gap:.5rem}
+  .bitem{grid-template-columns:auto 1fr;gap:.4rem .7rem}
+  .bitem .stat{grid-column:2;text-align:left;margin-top:.15rem}
+  #grid{grid-template-columns:1fr}
+  .htitle{font-size:14px}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="hl">
+    <div class="logo">SR</div>
+    <div>
+      <div class="htitle">Startup Radar</div>
+      <div class="hsub">Where companies are being built</div>
+    </div>
+  </div>
+  <div class="hr">
+    <span id="stamp"></span>
+    <button class="ghost" id="refresh">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+      </svg>
+      Refresh
+    </button>
+  </div>
+</header>
+
+<nav class="nav" id="nav">
+  <button data-view="brief" class="on">Brief <span class="pill" id="pill-brief">·</span></button>
+  <button data-view="landscape">Landscape <span class="pill" id="pill-land">·</span></button>
+  <button data-view="feed">Feed <span class="pill" id="pill-feed">0</span></button>
+</nav>
+
+<main>
+  <section class="view on" id="view-brief"><div class="skel">Loading this morning's brief…</div></section>
+  <section class="view" id="view-landscape"><div class="skel">Loading the landscape…</div></section>
+  <section class="view" id="view-feed">
+    <div class="subtabs" id="subtabs"></div>
+    <div id="progress-wrap"><div id="progress-bar"></div></div>
+    <div id="grid"></div>
+  </section>
+</main>
+
+<div id="reader">
+  <div class="reader-bar">
+    <button class="ghost" id="reader-close">← Back</button>
+    <span class="title" id="reader-title"></span>
+    <button class="ghost" id="reader-print">Print</button>
+    <button class="ghost" id="reader-pdf">PDF</button>
+  </div>
+  <div id="reader-body"><div class="reader-inner" id="reader-inner"></div></div>
+</div>
+<script>
+/* ============================================================
+   STARTUP RADAR
+   ------------------------------------------------------------
+   Three views over one question: where are people building
+   companies, and what are they building with?
+
+     Brief      what changed since yesterday
+     Landscape  the structural read of the current YC batch
+     Feed       the live news wire
+
+   Feed articles are fetched client-side through the NSL proxy
+   (unchanged, and it also holds the dismiss state). Landscape and
+   Brief are served pre-computed by the startup-intel worker, which
+   re-pulls the YC directory nightly — so neither view pays for a
+   few hundred requests at page load.
+   ============================================================ */
+
+const API_BASE   = 'https://nsl-proxy.haydenmterjeson.workers.dev';   // feeds + dismiss sync
+const INTEL_BASE = 'https://startup-intel.haydenmterjeson.workers.dev'; // landscape + brief
+const PROXY_BASE = API_BASE + '/?url=';
+const JINA_READER_BASE = 'https://r.jina.ai/';
+
+const FETCH_TIMEOUT_MS        = 15000;
+const READER_FETCH_TIMEOUT_MS = 20000;
+const FETCH_RETRY_DELAY_MS    = 1200;
+const MAX_AGE_MS              = 6 * 30.44 * 24 * 60 * 60 * 1000;
+const HIDDEN_RETENTION_MS     = MAX_AGE_MS;
+
+/* ---------- device identity ---------- */
+function getDeviceId() {
+  let id = localStorage.getItem('sr_device_id');
+  if (!id) {
+    id = 'dev_' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    localStorage.setItem('sr_device_id', id);
+  }
+  return id;
+}
+const DEVICE_ID = getDeviceId();
+
+/* ---------- noise filters ---------- */
+const STOCK_NOISE_TERMS   = ['nasdaq','nyse','price target','buy rating','sell rating','analyst','market cap','p/e ratio','wall street','zacks rank','dow jones'];
+const STOCK_NOISE_SOURCES = ['fool.com','zacks','marketbeat','benzinga','tipranks','seekingalpha','investorplace','nasdaq.com','finance.yahoo'];
+function isStockNoise(a) {
+  const blob = `${a.title} ${a.excerpt}`.toLowerCase();
+  const src  = (a.source || '').toLowerCase();
+  if (STOCK_NOISE_SOURCES.some(s => src.includes(s))) return true;
+  return STOCK_NOISE_TERMS.filter(t => blob.includes(t)).length >= 2;
+}
+
+/* ---------- feeds ---------- */
+const FEEDS = [
+  {
+    id:'formation', label:'Company Formation', color:'#BE7F09', bg:'rgba(190,127,9,.13)',
+    sources:[
+      { type:'direct', url:'https://techcrunch.com/category/startups/feed/', source:'TechCrunch' },
+      { type:'bing',   query:'"emerges from stealth" startup' },
+      { type:'bing',   query:'"seed round" startup raises' },
+      { type:'google', query:'("emerges from stealth" OR "launches out of stealth") startup' },
+      { type:'google', query:'"Y Combinator" batch startup' },
+    ]
+  },
+  {
+    id:'cleantech', label:'Clean Tech & Renewables', color:'#2A9D8F', bg:'rgba(42,157,143,.14)',
+    sources:[
+      { type:'bing',   query:'"climate tech" startup' },
+      { type:'bing',   query:'"climate tech" funding' },
+      { type:'bing',   query:'"clean tech" startup' },
+      { type:'bing',   query:'"renewable energy" startup' },
+      { type:'bing',   query:'"carbon capture" startup' },
+      { type:'google', query:'("climate tech" OR "clean tech") (startup OR funding OR seed)' },
+      { type:'google', query:'("renewable energy" OR "carbon capture") (startup OR funding)' },
+      { type:'direct', url:'https://www.canarymedia.com/rss.rss', source:'Canary Media' },
+    ]
+  },
+  {
+    id:'maptech', label:'Map Tech & Geospatial', color:'#E85D04', bg:'rgba(232,93,4,.13)',
+    sources:[
+      { type:'bing',   query:'"geospatial" startup' },
+      { type:'bing',   query:'"geospatial" funding' },
+      { type:'bing',   query:'"mapping technology" startup' },
+      { type:'bing',   query:'"earth observation" startup' },
+      { type:'bing',   query:'"lidar" startup funding' },
+      { type:'google', query:'("geospatial" OR "earth observation") (startup OR funding)' },
+      { type:'direct', url:'https://www.geoconnexion.com/news/feed.rss', source:'GeoConnexion' },
+    ]
+  },
+  {
+    id:'legacy', label:'Legacy B2B Disruption', color:'#2A72B2', bg:'rgba(42,114,178,.14)',
+    sources:[
+      { type:'bing',   query:'"vertical saas" startup' },
+      { type:'bing',   query:'"construction tech" startup' },
+      { type:'bing',   query:'"proptech" funding' },
+      { type:'bing',   query:'"logistics tech" startup' },
+      { type:'bing',   query:'"supply chain software" startup' },
+      { type:'bing',   query:'"manufacturing AI" startup' },
+      { type:'google', query:'("vertical saas" OR "proptech") (startup OR funding)' },
+      { type:'google', query:'("construction tech" OR "logistics tech") startup' },
+      { type:'direct', url:'https://www.constructiondive.com/feeds/news/', source:'Construction Dive' },
+      { type:'direct', url:'https://www.utilitydive.com/feeds/news/',      source:'Utility Dive' },
+    ]
+  },
+  {
+    id:'frontier', label:'Robotics & Defense', color:'#B4472F', bg:'rgba(180,71,47,.13)',
+    sources:[
+      { type:'bing',   query:'robotics startup funding' },
+      { type:'bing',   query:'"defense tech" startup funding' },
+      { type:'bing',   query:'"humanoid robot" startup' },
+      { type:'google', query:'(robotics OR "defense tech" OR drone) startup (funding OR raises)' },
+      { type:'google', query:'"data center" startup (funding OR buildout OR nuclear)' },
+    ]
+  },
+];
+
+/* ---------- state ---------- */
+let allArticles    = [];
+let hiddenArticles = JSON.parse(localStorage.getItem('sr_hidden') || '{}');
+let activeTab      = 'all';
+let activeView     = 'brief';
+let isLoading      = false;
+let landscape      = null;
+let brief          = null;
+
+/* ---------- helpers ---------- */
+function fnv1a(str){let h=0x811c9dc5;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,0x01000193);}return ('0000000'+(h>>>0).toString(16)).slice(-8);}
+function articleId(a){return 'a'+fnv1a((a.title||'').toLowerCase().replace(/[^a-z0-9]/g,'').slice(0,80));}
+function escHtml(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function relTime(ts){
+  if(!ts) return '';
+  const h=Math.floor((Date.now()-ts)/3600000), dy=Math.floor(h/24);
+  if(h<1) return 'just now';
+  if(h<24) return `${h}h ago`;
+  if(dy<8) return `${dy}d ago`;
+  return new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+const signed = n => `${n>0?'+':''}${n}pp`;
+
+/* ---------- fetch ---------- */
+async function fetchUrl(url, attempt=0){
+  try{
+    const res = await fetch(PROXY_BASE+encodeURIComponent(url), {signal:AbortSignal.timeout(FETCH_TIMEOUT_MS)});
+    if(res.ok) return await res.text();
+    if(attempt===0){ await sleep(FETCH_RETRY_DELAY_MS); return fetchUrl(url,1); }
+    return '';
+  }catch{
+    if(attempt===0){ await sleep(FETCH_RETRY_DELAY_MS); return fetchUrl(url,1); }
+    return '';
+  }
+}
+async function fetchViaJina(articleUrl){
+  try{
+    const res = await fetch(JINA_READER_BASE+articleUrl,{
+      headers:{'Accept':'text/plain, text/markdown, */*',
+        'X-Remove-Selector':'img, figure, picture, video, iframe, .ad, .advertisement, .promo, [class*="related"], [class*="newsletter"], [class*="subscribe"]',
+        'X-Return-Format':'text'},
+      signal:AbortSignal.timeout(READER_FETCH_TIMEOUT_MS)});
+    if(!res.ok) return '';
+    return await res.text() || '';
+  }catch{ return ''; }
+}
+
+/* ---------- dismiss sync (D1) ---------- */
+async function postFeedback(articleId,{dismissed,rating}={}){
+  try{
+    await fetch(`${API_BASE}/api/feedback`,{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({articleId,deviceId:DEVICE_ID,dismissed,rating}),
+      signal:AbortSignal.timeout(8000)});
+  }catch{ /* silent — never block the UI */ }
+}
+async function syncDismissesFromServer(){
+  try{
+    const res = await fetch(`${API_BASE}/api/state?device=${encodeURIComponent(DEVICE_ID)}`,{signal:AbortSignal.timeout(8000)});
+    if(!res.ok) return;
+    const data = await res.json();
+    if(!Array.isArray(data.mine)) return;
+    let changed=false;
+    if(!hiddenArticles.__meta) hiddenArticles.__meta={};
+    data.mine.forEach(row=>{
+      if(row.dismissed && !hiddenArticles[row.article_id]){
+        hiddenArticles[row.article_id]=true;
+        hiddenArticles.__meta[row.article_id]=Date.now();
+        changed=true;
+      }
+    });
+    if(changed) localStorage.setItem('sr_hidden',JSON.stringify(hiddenArticles));
+  }catch{ /* local-only mode */ }
+}
+function hideArticle(id){
+  hiddenArticles[id]=true;
+  if(!hiddenArticles.__meta) hiddenArticles.__meta={};
+  hiddenArticles.__meta[id]=Date.now();
+  localStorage.setItem('sr_hidden',JSON.stringify(hiddenArticles));
+  postFeedback(id,{dismissed:true});
+}
+function pruneHiddenArticles(){
+  const now=Date.now();
+  if(!hiddenArticles.__meta) hiddenArticles.__meta={};
+  const currentIds=new Set(allArticles.map(a=>a.id));
+  let changed=false;
+  Object.keys(hiddenArticles).forEach(id=>{
+    if(id==='__meta') return;
+    if(!hiddenArticles.__meta[id]){ hiddenArticles.__meta[id]=now; changed=true; }
+  });
+  Object.keys(hiddenArticles).forEach(id=>{
+    if(id==='__meta') return;
+    const hiddenAt=hiddenArticles.__meta[id]||now;
+    if(!currentIds.has(id) && (now-hiddenAt)>HIDDEN_RETENTION_MS){
+      delete hiddenArticles[id]; delete hiddenArticles.__meta[id]; changed=true;
+    }
+  });
+  if(changed) localStorage.setItem('sr_hidden',JSON.stringify(hiddenArticles));
+}
+</script>
+<script>
+/* ============================================================
+   FEED — RSS parsing, cache and rendering
+   ============================================================ */
+
+function resolveGoogleNewsLink(rawLink, sourceUrlAttr){
+  if(sourceUrlAttr && /^https?:\/\//.test(sourceUrlAttr)) return sourceUrlAttr;
+  if(!rawLink) return rawLink;
+  try{
+    const u=new URL(rawLink);
+    if(!u.hostname.endsWith('news.google.com')) return rawLink;
+    return u.searchParams.get('url') || rawLink;
+  }catch{ return rawLink; }
+}
+
+function parseXml(xmlStr, feed, sourceType){
+  try{
+    const doc=new DOMParser().parseFromString(xmlStr,'application/xml');
+    if(doc.querySelector('parsererror')) return [];
+    return Array.from(doc.querySelectorAll('item')).map(el=>{
+      let title=(el.querySelector('title')?.textContent||'').replace(/\s[-–]\s[^-–]{1,50}$/,'').trim();
+      let link=el.querySelector('link')?.textContent||el.querySelector('guid')?.textContent||'#';
+      const sourceEl=el.querySelector('source');
+      let source=sourceEl?.textContent||feed.label;
+      if(sourceType==='google') link=resolveGoogleNewsLink(link,sourceEl?.getAttribute('url'));
+      const publishedAt=new Date(el.querySelector('pubDate')?.textContent||'').getTime()||0;
+      const excerpt=(new DOMParser().parseFromString(el.querySelector('description')?.textContent||'','text/html').body.textContent||'').trim().slice(0,200);
+      if(!title||title.length<6) return null;
+      return {feedId:feed.id,id:articleId({title}),title,link,source,publishedAt,excerpt};
+    }).filter(Boolean);
+  }catch{ return []; }
+}
+
+async function fetchSource(source, feed){
+  let url='';
+  if(source.type==='bing')        url=`https://www.bing.com/news/search?q=${encodeURIComponent(source.query)}&format=rss`;
+  else if(source.type==='google') url=`https://news.google.com/rss/search?q=${encodeURIComponent(source.query)}&hl=en-US&gl=US&ceid=US:en`;
+  else                            url=source.url;
+  const body=await fetchUrl(url);
+  if(!body) return [];
+  let parsed=parseXml(body,feed,source.type);
+  if(source.type==='direct'&&source.source) parsed=parsed.map(a=>({...a,source:a.source||source.source}));
+  return parsed.filter(a=>(Date.now()-a.publishedAt)<=MAX_AGE_MS && !isStockNoise(a));
+}
+
+/* ---------- IndexedDB cache ---------- */
+const idb={
+  async open(){
+    return new Promise((res,rej)=>{
+      const req=indexedDB.open('startup_radar_db',1);
+      req.onupgradeneeded=()=>{ if(!req.result.objectStoreNames.contains('articles')) req.result.createObjectStore('articles',{keyPath:'id'}); };
+      req.onsuccess=()=>res(req.result); req.onerror=()=>rej(req.error);
+    });
+  },
+  async get(){
+    try{ const d=await this.open(); return await new Promise(r=>d.transaction('articles').objectStore('articles').getAll().onsuccess=e=>r(e.target.result)); }
+    catch{ return []; }
+  },
+  async put(arts){
+    try{
+      const d=await this.open();
+      await new Promise((resolve,reject)=>{
+        const tx=d.transaction('articles','readwrite'),st=tx.objectStore('articles');
+        arts.forEach(a=>st.put(a));
+        tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error); tx.onabort=()=>reject(tx.error);
+      });
+      await new Promise((resolve,reject)=>{
+        const tx2=d.transaction('articles','readwrite'),st2=tx2.objectStore('articles');
+        st2.openCursor().onsuccess=e=>{const c=e.target.result; if(c){ if(Date.now()-c.value.publishedAt>MAX_AGE_MS) c.delete(); c.continue(); }};
+        tx2.oncomplete=resolve; tx2.onerror=()=>reject(tx2.error); tx2.onabort=()=>reject(tx2.error);
+      });
+    }catch{}
+  }
+};
+
+async function loadFeeds(){
+  if(isLoading) return; isLoading=true;
+  document.getElementById('progress-wrap').classList.add('visible');
+  document.getElementById('refresh').classList.add('spin');
+
+  await syncDismissesFromServer();
+
+  const local=await idb.get();
+  if(local.length){ allArticles=local; renderSubtabs(); renderGrid(); }
+
+  const sources=FEEDS.flatMap(feed=>feed.sources.map(src=>({src,feed})));
+  const total=sources.length; let done=0;
+  const merged=new Map(allArticles.map(a=>[a.id,a]));
+
+  const jobs=sources.map(async({src,feed})=>{
+    try{
+      const items=await fetchSource(src,feed);
+      items.forEach(a=>{
+        const existing=merged.get(a.id);
+        if(existing && a.excerpt==='' && existing.excerpt!=='') return;
+        merged.set(a.id,a);
+      });
+      allArticles=[...merged.values()].sort((a,b)=>b.publishedAt-a.publishedAt);
+    }catch(e){ console.warn('source failed',src,e); }
+    finally{
+      done++;
+      document.getElementById('progress-bar').style.width=`${Math.round((done/total)*100)}%`;
+      renderSubtabs(); renderGrid();
+    }
+  });
+
+  await Promise.allSettled(jobs);
+  pruneHiddenArticles();
+  idb.put(allArticles);
+  document.getElementById('progress-wrap').classList.remove('visible');
+  document.getElementById('refresh').classList.remove('spin');
+  stamp();
+  isLoading=false;
+}
+
+function stamp(){
+  document.getElementById('stamp').textContent='Updated '+new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+}
+
+/* ---------- feed rendering ---------- */
+const visibleList = () => allArticles
+  .filter(a=>!hiddenArticles[a.id])
+  .filter(a=>activeTab==='all'||a.feedId===activeTab);
+
+function renderSubtabs(){
+  const counts={all:0};
+  allArticles.filter(a=>!hiddenArticles[a.id]).forEach(a=>{counts.all++;counts[a.feedId]=(counts[a.feedId]||0)+1;});
+  const defs=[{id:'all',label:'All',color:'var(--ink)',count:counts.all},
+    ...FEEDS.map(f=>({id:f.id,label:f.label,color:f.color,count:counts[f.id]||0}))];
+  document.getElementById('subtabs').innerHTML=defs.map(t=>
+    `<button class="subtab ${t.id===activeTab?'on':''}" data-tab="${t.id}" style="--dot:${t.color}">
+       <span class="dot" style="background:${t.color}"></span>${escHtml(t.label)}
+       <span class="pill">${t.count}</span></button>`).join('');
+  document.getElementById('pill-feed').textContent=counts.all;
+}
+
+function renderGrid(){
+  const grid=document.getElementById('grid'), list=visibleList();
+  if(!list.length){ grid.innerHTML=`<div class="empty">No articles yet. Hit Refresh to scan the wire.</div>`; return; }
+  grid.innerHTML=list.map(a=>{
+    const f=FEEDS.find(x=>x.id===a.feedId)||FEEDS[0];
+    return `<div class="card-wrap" data-id="${a.id}">
+      <div class="card-under">Hidden</div>
+      <div class="card" data-id="${a.id}">
+        <div class="card-top">
+          <span class="badge" style="color:${f.color};background:${f.bg}">${escHtml(f.label)}</span>
+          <span class="card-src">${escHtml(a.source)}</span>
+        </div>
+        <div class="card-title"><a href="${escHtml(a.link)}" target="_blank" rel="noopener">${escHtml(a.title)}</a></div>
+        ${a.excerpt?`<div class="card-excerpt">${escHtml(a.excerpt)}</div>`:''}
+        <div class="card-foot">
+          <span class="card-date">${relTime(a.publishedAt)}</span>
+          <div class="card-actions">
+            <button class="act-btn" data-reader="${a.id}">Reader</button>
+            <a class="act-btn" href="${escHtml(a.link)}" target="_blank" rel="noopener">Open →</a>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+</script>
+<script>
+/* ============================================================
+   INTELLIGENCE — brief and landscape, served pre-computed
+   ============================================================ */
+
+async function loadIntel(){
+  try{
+    const [l,b] = await Promise.all([
+      fetch(`${INTEL_BASE}/api/landscape`,{signal:AbortSignal.timeout(20000)}).then(r=>r.ok?r.json():null),
+      fetch(`${INTEL_BASE}/api/brief`,   {signal:AbortSignal.timeout(20000)}).then(r=>r.ok?r.json():null),
+    ]);
+    landscape=l; brief=b;
+    try{ localStorage.setItem('sr_intel',JSON.stringify({l,b,at:Date.now()})); }catch{}
+  }catch{
+    // Fall back to the last good copy so the page is useful offline.
+    try{
+      const cached=JSON.parse(localStorage.getItem('sr_intel')||'null');
+      if(cached){ landscape=cached.l; brief=cached.b; }
+    }catch{}
+  }
+  renderBrief(); renderLandscape();
+}
+
+/* ---------- brief ---------- */
+function renderBrief(){
+  const el=document.getElementById('view-brief');
+  if(!brief){ el.innerHTML=`<div class="err">The brief hasn't been generated yet. It rebuilds every morning — try Refresh.</div>`; return; }
+
+  const d=new Date(brief.generatedAt);
+  const day=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+
+  const sections=brief.sections.map(s=>`
+    <div class="bsec">
+      <div class="bsec-h"><h3>${escHtml(s.title)}</h3></div>
+      ${s.lead?`<p class="bsec-lead">${escHtml(s.lead)}</p>`:''}
+      <div class="blist">
+        ${s.items.map(it=>`
+          <div class="bitem">
+            <span class="bmark ${escHtml(it.kind)}">${escHtml(it.kind)}</span>
+            <div class="lbl">${it.url?`<a href="${escHtml(it.url)}" target="_blank" rel="noopener">${escHtml(it.label)}</a>`:escHtml(it.label)}</div>
+            <div class="stat">${escHtml(it.stat||'')}</div>
+            ${it.detail?`<div class="det">${escHtml(it.detail)}</div>`:''}
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+
+  el.innerHTML=`
+    <div class="brief-mast">
+      <div class="row">
+        <p class="eyebrow">Morning brief</p>
+        <p class="eyebrow">${escHtml(day)} · ${escHtml(brief.batch)} · n=${brief.batchSize}</p>
+      </div>
+      <h1>What moved<br>while you slept.</h1>
+      <p class="brief-headline">${escHtml(brief.headline)}</p>
+    </div>
+    ${sections}
+    <div class="method">
+      <p><b>How to read this.</b> Every line traces to a count in the nightly snapshot — nothing here is model-generated, so it cannot drift or invent a company. "pp" is percentage points of batch share, measured against the same season a year earlier.</p>
+    </div>`;
+  document.getElementById('pill-brief').textContent=brief.sections.length;
+}
+
+/* ---------- landscape ---------- */
+function renderLandscape(){
+  const el=document.getElementById('view-landscape');
+  if(!landscape){ el.innerHTML=`<div class="err">Landscape data unavailable. It rebuilds nightly — try Refresh.</div>`; return; }
+  const L=landscape;
+
+  const tiles=L.vocabulary.slice(0,5).map(v=>`
+    <div class="tile">
+      <span class="v ${v.deltaPP>0?'hi':''}">${v.share}%</span>
+      <span class="k">mention ${escHtml(v.term)}<br>${v.count} companies</span>
+      <span class="d ${v.deltaPP>=0?'up':'down'}">${signed(v.deltaPP)} vs ${escHtml(L.yearAgo)}</span>
+    </div>`).join('');
+
+  const maxShare=Math.max(...L.industries.map(i=>Math.max(i.now,i.then)),10)*1.05;
+  const rows=L.industries.map(i=>`
+    <div class="brow">
+      <div class="lab">${escHtml(i.label)}</div>
+      <div class="pair">
+        <div class="bar" title="${escHtml(L.yearAgo)}: ${i.thenN} companies (${i.then}%)">
+          <span class="fill then" style="width:${(i.then/maxShare*100).toFixed(2)}%"></span>
+          <span class="val">${i.then}% <span style="opacity:.6">· ${i.thenN}</span></span>
+        </div>
+        <div class="bar" title="${escHtml(L.current)}: ${i.nowN} companies (${i.now}%)">
+          <span class="fill now" style="width:${(i.now/maxShare*100).toFixed(2)}%"></span>
+          <span class="val"><b>${i.now}%</b> <span style="opacity:.6">· ${i.nowN}</span></span>
+        </div>
+      </div>
+    </div>`).join('');
+
+  const themes=L.themes.map(t=>`
+    <article class="theme">
+      <div class="metric">
+        <span class="m-v">${t.count}</span>
+        <span class="m-k">companies<br>${t.share}% of batch</span>
+        <span class="m-d ${t.deltaPP>=0?'up':'down'}" style="color:${t.deltaPP>=0?'var(--now)':'var(--muted)'}">${signed(t.deltaPP)}</span>
+      </div>
+      <div class="theme-body">
+        <h3>${escHtml(t.label)}</h3>
+        <p>${escHtml(t.blurb)}</p>
+        ${t.companies.length?`<p class="roster">${t.companies.map(c=>
+          `<a href="${escHtml(c.url)}" target="_blank" rel="noopener"><b>${escHtml(c.name)}</b></a> ${escHtml((c.oneLiner||'').slice(0,74))}`
+        ).join(' · ')}</p>`:''}
+      </div>
+    </article>`).join('');
+
+  const tools=L.tools.map(t=>`
+    <div class="cell">
+      <span class="c-k">${t.count} companies · ${signed(t.deltaPP)}</span>
+      <span class="c-t">${escHtml(t.label)}</span>
+      <span class="c-d">${escHtml(t.note)}</span>
+      ${t.companies.length?`<span class="c-d" style="color:var(--ink-2)">${t.companies.slice(0,4).map(c=>escHtml(c.name)).join(' · ')}</span>`:''}
+    </div>`).join('');
+
+  const gaps=L.gaps.map(g=>`
+    <div class="gap">
+      <div class="g-l">
+        <div class="g-top">
+          <span class="g-n">${String(g.n).padStart(2,'0')}</span>
+          <span class="heat ${escHtml(g.heat)}" data-h="${escHtml(g.heat)}">${escHtml(g.heat)}</span>
+        </div>
+        <div class="g-t">${escHtml(g.problem)}</div>
+        <div class="g-stat">${g.count} companies · ${g.share}% · ${signed(g.deltaPP)}</div>
+      </div>
+      <p class="g-r">${escHtml(g.response)}</p>
+    </div>`).join('');
+
+  const thin=L.thin.map(t=>`
+    <div><span class="t-v">${t.share}%</span>
+    <span class="t-k">${escHtml(t.label)} — ${t.count} of ${L.batchSizes[L.current]}<br>${t.falling?`down ${signed(t.deltaPP)}`:`${signed(t.deltaPP)}`} on last year</span></div>`).join('');
+
+  const batchList=Object.entries(L.batchSizes).map(([k,v])=>`${k} (${v})`).join(', ');
+
+  el.innerHTML=`
+    <div class="brief-mast">
+      <div class="row">
+        <p class="eyebrow">Y Combinator company directory</p>
+        <p class="eyebrow">${escHtml(L.current)} · n=${L.batchSizes[L.current]} · read ${new Date(L.generatedAt).toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'})}</p>
+      </div>
+      <h1>Where companies<br>are being built.</h1>
+      <p class="brief-headline">The structural read of the current batch — which industries are absorbing founders, which gaps are closing, and what they're building with. Recomputed nightly against ${escHtml(L.yearAgo)}.</p>
+      <div class="tiles">${tiles}</div>
+    </div>
+
+    <section class="sec">
+      <div class="sec-head"><h2>The one-year shift</h2><p class="eyebrow">Share of batch</p></div>
+      <p class="lead" style="margin-bottom:1.2rem">Lining the current batch up against the same season a year ago, using YC's own industry tags — applied consistently across batches, which is what makes the comparison trustworthy.</p>
+      <div class="chart">
+        <div class="legend">
+          <span><i class="swatch" style="background:var(--then)"></i>${escHtml(L.yearAgo)} · n=${L.batchSizes[L.yearAgo]}</span>
+          <span><i class="swatch" style="background:var(--now)"></i>${escHtml(L.current)} · n=${L.batchSizes[L.current]}</span>
+        </div>
+        <div class="rows">${rows}</div>
+        <p class="chart-note">Bars are share of batch, so cohorts of different sizes stay comparable. Companies carry more than one tag, so columns do not sum to 100%.</p>
+      </div>
+    </section>
+
+    <section class="sec">
+      <div class="sec-head"><h2>Themes running through the batch</h2><p class="eyebrow">Measured, not impressionistic</p></div>
+      <div class="themes">${themes}</div>
+    </section>
+
+    <section class="sec">
+      <div class="sec-head"><h2>The gaps they say they're filling</h2><p class="eyebrow">Claimed problem → response</p></div>
+      <p class="lead" style="margin-bottom:1.2rem">Ranked by how many companies name the problem. <b>Crowded</b> means the gap is both large and still growing; <b>open</b> means few founders have gone after it yet.</p>
+      <div class="gaps">${gaps}</div>
+    </section>
+
+    <section class="sec">
+      <div class="sec-head"><h2>The recurring toolkit</h2><p class="eyebrow">Building blocks that repeat</p></div>
+      <div class="grid3">${tools}</div>
+    </section>
+
+    <div class="inverse">
+      <div class="sec-head"><h2>What's conspicuously thin</h2><p class="eyebrow">Absence is a signal too</p></div>
+      <div class="thin">${thin}</div>
+    </div>
+
+    <div class="method">
+      <p><b>Method.</b> The full YC public company directory is re-pulled every night. Industry percentages use YC's own taxonomy. Theme, tool and gap counts are keyword matches across each company's one-line pitch, the opening of its long description and its tags — so they measure how founders describe themselves, which is the point, but they slightly undercount companies that avoid the common vocabulary.</p>
+      <p>Batches compared: ${escHtml(batchList)}. A batch under 60 companies is too small to read as a trend and is skipped as the current cohort.</p>
+      <p>Source: <a href="https://www.ycombinator.com/companies" target="_blank" rel="noopener">ycombinator.com/companies</a></p>
+    </div>`;
+  document.getElementById('pill-land').textContent=L.batchSizes[L.current];
+}
+</script>
+<script>
+/* ============================================================
+   READER, PDF, GESTURES, WIRING
+   ============================================================ */
+
+let readerArticle=null, readerParas=[];
+
+function parseJinaText(raw){
+  if(!raw||raw.length<100) return [];
+  const lines=raw.split('\n'), blocks=[];
+  let inFrontmatter=false;
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i].trim();
+    if(i===0&&line==='---'){ inFrontmatter=true; continue; }
+    if(inFrontmatter){ if(line==='---') inFrontmatter=false; continue; }
+    if(!line) continue;
+    if(/^#{1,3}\s/.test(line)){ const text=line.replace(/^#{1,3}\s+/,'').trim(); if(text.length>3) blocks.push({tag:'h2',text}); continue; }
+    if(/^(Title|URL|Published|Author|Source|Image):/i.test(line)) continue;
+    if(/^\[.*\]\(.*\)$/.test(line)||line.startsWith('![')) continue;
+    if(line.length<30) continue;
+    const text=line.replace(/\*\*(.+?)\*\*/g,'$1').replace(/\*(.+?)\*/g,'$1').replace(/\[([^\]]+)\]\([^)]+\)/g,'$1').replace(/`(.+?)`/g,'$1').trim();
+    if(text.length>=30) blocks.push({tag:'p',text});
+  }
+  return blocks.filter((b,i)=>!i||b.text!==blocks[i-1].text).slice(0,200);
+}
+
+function extractArticleHtml(html){
+  const doc=new DOMParser().parseFromString(html,'text/html');
+  doc.querySelectorAll('script,style,noscript,nav,header,footer,aside,form,iframe,svg,button,[role="navigation"],[class*="related"],[class*="newsletter"],[class*="subscribe"],[class*="promo"],[class*="comment"]').forEach(n=>n.remove());
+  let best=doc.querySelector('article');
+  if(!best){
+    let bestLen=0;
+    doc.querySelectorAll('main,section,div').forEach(el=>{let len=0;el.querySelectorAll('p').forEach(p=>len+=(p.textContent||'').length);if(len>bestLen){bestLen=len;best=el;}});
+  }
+  if(!best) best=doc.body;
+  const out=[];
+  best.querySelectorAll('h1,h2,h3,p,li,blockquote').forEach(el=>{
+    const txt=(el.textContent||'').replace(/\s+/g,' ').trim();
+    if(txt.length<30&&!/^h[1-3]$/i.test(el.tagName)) return;
+    if(txt.length<4) return;
+    out.push({tag:/^h[1-3]$/i.test(el.tagName)?'h2':'p',text:txt});
+  });
+  return out.filter((b,i)=>!i||b.text!==out[i-1].text).slice(0,220);
+}
+
+async function openReader(id){
+  const a=allArticles.find(x=>x.id===id);
+  if(!a) return;
+  readerArticle=a; readerParas=[];
+  document.getElementById('reader-title').textContent=a.source||'';
+  const inner=document.getElementById('reader-inner');
+  inner.innerHTML=`<h1>${escHtml(a.title)}</h1>
+    <div class="reader-meta">${escHtml(a.source)} · ${relTime(a.publishedAt)} · <a href="${escHtml(a.link)}" target="_blank" rel="noopener">original article</a></div>
+    <div class="reader-loading">Fetching article…</div>`;
+  document.getElementById('reader').classList.add('open');
+
+  const jinaText=await fetchViaJina(a.link);
+  if(!readerArticle||readerArticle.id!==id) return;
+  if(jinaText) readerParas=parseJinaText(jinaText);
+  if(!readerParas.length){
+    const html=await fetchUrl(a.link);
+    if(!readerArticle||readerArticle.id!==id) return;
+    if(html) readerParas=extractArticleHtml(html);
+  }
+  const loadingEl=inner.querySelector('.reader-loading');
+  if(!readerParas.length){
+    if(loadingEl) loadingEl.outerHTML=`<div class="reader-blocked">
+      <p>This article couldn't be fetched — the site may require a subscription or block automated access.</p>
+      <p><a href="${escHtml(a.link)}" target="_blank" rel="noopener">Open the original article →</a></p></div>`;
+    return;
+  }
+  if(loadingEl) loadingEl.remove();
+  inner.insertAdjacentHTML('beforeend',readerParas.map(b=>`<${b.tag}>${escHtml(b.text)}</${b.tag}>`).join(''));
+}
+function closeReader(){ document.getElementById('reader').classList.remove('open'); readerArticle=null; }
+
+/* ---------- PDF ---------- */
+let jsPdfPromise=null;
+function loadJsPdf(){
+  if(window.jspdf) return Promise.resolve();
+  if(!jsPdfPromise) jsPdfPromise=new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.onload=resolve; s.onerror=reject; document.head.appendChild(s);
+  });
+  return jsPdfPromise;
+}
+async function downloadPdf(){
+  if(!readerArticle) return;
+  try{ await loadJsPdf(); }catch{ alert('PDF library failed to load. Try Print instead.'); return; }
+  const {jsPDF}=window.jspdf, doc=new jsPDF({unit:'pt',format:'letter'});
+  const W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight(),M=54,maxW=W-M*2;
+  let y=M;
+  const add=h=>{ if(y+h>H-M){doc.addPage();y=M;} };
+  doc.setFont('helvetica','bold'); doc.setFontSize(16);
+  for(const l of doc.splitTextToSize(readerArticle.title,maxW)){add(20);doc.text(l,M,y);y+=20;}
+  y+=4; doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(120);
+  const meta=`${readerArticle.source||''} · ${new Date(readerArticle.publishedAt||Date.now()).toLocaleDateString()} · ${readerArticle.link}`;
+  for(const l of doc.splitTextToSize(meta,maxW)){add(12);doc.text(l,M,y);y+=12;}
+  y+=10; doc.setDrawColor(200); doc.line(M,y,W-M,y); y+=18; doc.setTextColor(30);
+  const blocks=readerParas.length?readerParas:[{tag:'p',text:readerArticle.excerpt||'(Full text not available — excerpt only.)'}];
+  for(const b of blocks){
+    if(b.tag==='h2'){doc.setFont('helvetica','bold');doc.setFontSize(12);y+=6;}
+    else{doc.setFont('helvetica','normal');doc.setFontSize(10.5);}
+    for(const l of doc.splitTextToSize(b.text,maxW)){add(15);doc.text(l,M,y);y+=15;}
+    y+=6;
+  }
+  doc.save((readerArticle.title||'article').replace(/[^a-z0-9]+/gi,'-').slice(0,60)+'.pdf');
+}
+
+/* ---------- swipe to dismiss ---------- */
+const grid=document.getElementById('grid');
+let swipe=null;
+grid.addEventListener('touchstart',e=>{
+  const c=e.target.closest('.card');
+  if(c&&!e.target.closest('a, button')) swipe={card:c,x0:e.touches[0].clientX,dx:0,active:false};
+},{passive:true});
+grid.addEventListener('touchmove',e=>{
+  if(!swipe) return;
+  swipe.dx=e.touches[0].clientX-swipe.x0;
+  if(!swipe.active&&Math.abs(swipe.dx)>15){ swipe.active=true; swipe.card.closest('.card-wrap').classList.add('swipe-on'); }
+  if(swipe.active) swipe.card.style.transform=`translateX(${swipe.dx}px)`;
+},{passive:true});
+grid.addEventListener('touchend',()=>{
+  if(!swipe||!swipe.active){ swipe=null; return; }
+  const {card,dx}=swipe; swipe=null;
+  if(Math.abs(dx)>100){
+    hideArticle(card.dataset.id);
+    card.classList.add('flying');
+    card.style.transform=`translateX(${(dx>0?1:-1)*500}px)`;
+    setTimeout(()=>{ renderSubtabs(); renderGrid(); },300);
+  }else{
+    card.style.transform='';
+    card.closest('.card-wrap').classList.remove('swipe-on');
+  }
+});
+
+/* ---------- wiring ---------- */
+function setView(v){
+  activeView=v;
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('on',b.dataset.view===v));
+  document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on',s.id===`view-${v}`));
+  location.hash=v;
+  // The feed is expensive, so it only scans once the user actually opens it.
+  if(v==='feed'&&!allArticles.length&&!isLoading) loadFeeds();
+  window.scrollTo({top:0,behavior:'instant'});
+}
+
+document.getElementById('nav').addEventListener('click',e=>{
+  const b=e.target.closest('[data-view]'); if(b) setView(b.dataset.view);
+});
+document.getElementById('subtabs').addEventListener('click',e=>{
+  const t=e.target.closest('[data-tab]');
+  if(t){ activeTab=t.dataset.tab; renderSubtabs(); renderGrid(); }
+});
+grid.addEventListener('click',e=>{
+  const rd=e.target.closest('[data-reader]'); if(rd) openReader(rd.dataset.reader);
+});
+document.getElementById('reader-close').addEventListener('click',closeReader);
+document.getElementById('reader-print').addEventListener('click',()=>window.print());
+document.getElementById('reader-pdf').addEventListener('click',downloadPdf);
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeReader(); });
+
+document.getElementById('refresh').addEventListener('click',async()=>{
+  const btn=document.getElementById('refresh');
+  btn.classList.add('spin');
+  await loadIntel();
+  if(activeView==='feed'||allArticles.length) await loadFeeds();
+  btn.classList.remove('spin');
+  stamp();
+});
+
+/* ---------- boot ---------- */
+(function init(){
+  const cached=(()=>{ try{ return JSON.parse(localStorage.getItem('sr_intel')||'null'); }catch{ return null; } })();
+  if(cached){ landscape=cached.l; brief=cached.b; renderBrief(); renderLandscape(); }
+
+  const hash=(location.hash||'').replace('#','');
+  setView(['brief','landscape','feed'].includes(hash)?hash:'brief');
+
+  renderSubtabs();
+  loadIntel();
+  stamp();
+})();
+</script>
+</body>
+</html>

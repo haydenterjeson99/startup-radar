@@ -1,0 +1,11 @@
+name = "startup-intel"
+main = "src/index.js"
+compatibility_date = "2026-05-01"
+
+[triggers]
+crons = ["15 9 * * *"]
+
+[[d1_databases]]
+binding       = "DB"
+database_name = "startup-intel"
+database_id   = "e75c83bd-ed60-4698-9680-9ea5a5f9786e"
