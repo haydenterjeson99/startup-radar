@@ -130,7 +130,19 @@ export function isNoise(a) {
 
 /* GTM roles, with RevOps called out as the core target. */
 export const ROLE_CORE = /\b(rev(enue)?[ -]?ops|revenue operations|sales operations|sales ops|gtm operations|go[- ]to[- ]market operations|business operations|bizops|deal desk|sales strategy|salesforce (admin|administrator|architect|developer)|crm (manager|admin|administrator|lead|analyst)|commercial operations|sales enablement|gtm (systems|analyst|strategy))\b/i;
-export const ROLE_GTM  = /\b(sales|account executive|account manager|account director|business development|bdr|sdr|partnerships?|partner manager|channel|customer success|customer experience|go[- ]to[- ]market|gtm|revenue|commercial|solutions (engineer|consultant|architect)|sales engineer|marketing operations|growth (lead|manager)|key account|enterprise account|capture manager|government relations)\b/i;
+/* GTM operating roles beyond ROLE_CORE: strategy, systems, planning,
+   analytics and ops for the revenue org, plus bare "GTM" titles.
+   Quota-carrying and customer-facing roles are not included. */
+export const ROLE_GTM  = /\b((revenue|sales|gtm|go[- ]to[- ]market|commercial|marketing|growth|partner|channel|customer success|customer|pricing|monetization)\s*(&|and)?\s*(operations|ops|strategy|systems|planning|analytics|enablement|programs|insights|excellence)|strategy\s*(&|and)\s*operations|revenue (strategy|systems|analyst|order|accounting ops)|business systems|sales systems|deal desk|quote[- ]to[- ]cash|cpq|gtm|go[- ]to[- ]market|growth (lead|manager)|pricing (manager|analyst|lead))\b/i;
+
+/* Sellers, pre-sales and account owners. A "GTM" tag on one of
+   these titles ("Account Director, GTM") does not make it ops. */
+export const ROLE_SELLER = /\b(account (executive|manager|director|leader|lead)|key account|strategic account|sales (director|manager|lead|representative|rep|executive)|sales development|business development|bdr|sdr|solutions? (engineer(ing)?|architect|consultant)|sales engineer|customer success (manager|director|lead)|head of customer success|partnerships? (manager|lead|director)|director of partnerships|implementation manager|commercial lead)\b/i;
+
+/* Non-GTM jobs that share an ops word ("Business Operations,
+   Supply Chain", "Product Manager, Business Operations"). GTM and
+   revenue-systems engineers are kept. */
+export const ROLE_NON_GTM = /\b(supply chain|manufacturing|product manager|program manager|((software|data|devops|analytics|ml|security|infrastructure|platform|backend|front[- ]?end|full[- ]?stack) engineer(ing)?)|scientist|technician)\b/i;
 
 /* Titles that match the GTM words but aren't GTM jobs, plus
    internships (not useful for a lateral move). */

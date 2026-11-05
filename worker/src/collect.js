@@ -12,7 +12,7 @@
    ============================================================ */
 
 import { SOURCES_A, SOURCES_B, SECTORS, FUNDING, BAY_AREA, isNoise,
-         ROLE_CORE, ROLE_GTM, ROLE_EXCLUDE, classifyLocation } from './sources.js';
+         ROLE_CORE, ROLE_GTM, ROLE_SELLER, ROLE_NON_GTM, ROLE_EXCLUDE, classifyLocation } from './sources.js';
 import { fetchJobs } from './watchlist.js';
 
 const UA = { 'User-Agent': 'Mozilla/5.0 (compatible; startup-radar/2.0; +https://haydenterjeson99.github.io/startup-radar/)' };
@@ -135,10 +135,11 @@ export async function collectFeedsB(env, watchlist) {
 
 /* ---------- stage: jobs ---------- */
 
+/* GTM / RevOps operating roles only. Sales, pre-sales and customer
+   success roles are left out even when they mention GTM. */
 export function isGtmRole(title) {
-  if (ROLE_EXCLUDE.test(title)) return false;
-  if (ROLE_CORE.test(title)) return true;
-  return ROLE_GTM.test(title) && !/\b(engineer|developer|scientist|technician)\b/i.test(title.replace(/(sales|solutions|field) engineer(ing)?/ig, ''));
+  if (ROLE_EXCLUDE.test(title) || ROLE_SELLER.test(title) || ROLE_NON_GTM.test(title)) return false;
+  return ROLE_CORE.test(title) || ROLE_GTM.test(title);
 }
 
 export async function collectJobs(env, watchlist) {
