@@ -104,3 +104,51 @@ CREATE TABLE IF NOT EXISTS dismissals (
   at          INTEGER NOT NULL,
   PRIMARY KEY (device_id, article_id)
 );
+
+/* ---------- private job monitor (monitor.js) ----------
+   Holds the company list and Notion row ids for the job monitor.
+   Never read by the site, the brief or news matching; exposed
+   only through /api/monitor, which needs X-Radar-Key. */
+CREATE TABLE IF NOT EXISTS monitor_companies (
+  page_id      TEXT PRIMARY KEY,        -- Notion company row
+  name         TEXT NOT NULL,
+  careers      TEXT,                    -- careers URL written to Notion
+  ats          TEXT,
+  slug         TEXT,
+  status       TEXT,                    -- Watching | Match found | Manual check | No board found
+  note         TEXT,
+  fails        INTEGER NOT NULL DEFAULT 0,
+  last_error   TEXT,
+  last_checked INTEGER,                 -- last successful board check (ms)
+  notion_url   TEXT,                    -- URL as last seen in Notion, to spot edits
+  updated_at   INTEGER
+);
+CREATE TABLE IF NOT EXISTS monitor_roles (
+  key          TEXT PRIMARY KEY,        -- posting key, or URL without query string
+  page_id      TEXT,                    -- Notion role row (null until written)
+  company_id   TEXT,                    -- monitor_companies.page_id, null for clipped rows of other companies
+  board        TEXT,                    -- ats:slug the role lives on
+  title        TEXT,
+  url          TEXT,
+  level        TEXT,
+  work_loc     TEXT,
+  status       TEXT NOT NULL,           -- Open | Closed
+  clipped      INTEGER NOT NULL DEFAULT 0,  -- row existed before the monitor saw it
+  fit          TEXT,                    -- copied from Notion each night
+  first_seen   TEXT,                    -- YYYY-MM-DD
+  last_seen    INTEGER,
+  missed       INTEGER NOT NULL DEFAULT 0,
+  gone         INTEGER NOT NULL DEFAULT 0   -- Notion row deleted by hand; never recreate
+);
+CREATE INDEX IF NOT EXISTS monitor_roles_company ON monitor_roles(company_id);
+CREATE INDEX IF NOT EXISTS monitor_roles_board   ON monitor_roles(board);
+CREATE TABLE IF NOT EXISTS monitor_queue (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  kind        TEXT NOT NULL,            -- create | role | company
+  ref         TEXT NOT NULL,            -- role key or company page id
+  payload     TEXT,
+  tries       INTEGER NOT NULL DEFAULT 0,
+  last_error  TEXT,
+  created_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS monitor_queue_ref ON monitor_queue(kind, ref);

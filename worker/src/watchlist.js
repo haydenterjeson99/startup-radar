@@ -124,16 +124,20 @@ export async function sniffAts(pageUrl) {
 
 const UA = { 'User-Agent': 'Mozilla/5.0 (compatible; startup-radar/2.0)' };
 
-/** Normalised postings for one company: {id,title,location,dept,url,remote,postedAt}. */
-export async function fetchJobs(ats, slug) {
+/** Normalised postings for one company: {id,title,location,dept,url,remote,postedAt}.
+    With { details: true } (used only by the private job monitor) each
+    posting also carries `text` (plain posting text) and, where the board
+    gives structured pay, `comp` {min,max,basis} — at no extra requests. */
+export async function fetchJobs(ats, slug, { details = false } = {}) {
   if (ats === 'greenhouse') {
-    const r = await fetch(`https://boards-api.greenhouse.io/v1/boards/${slug}/jobs`, { headers: UA });
+    const r = await fetch(`https://boards-api.greenhouse.io/v1/boards/${slug}/jobs${details ? '?content=true' : ''}`, { headers: UA });
     if (!r.ok) throw new Error(`greenhouse ${slug} ${r.status}`);
     const j = await r.json();
     return (j.jobs || []).map(p => ({
       id: `gh:${slug}:${p.id}`, title: p.title, location: p.location?.name || '',
       dept: '', url: p.absolute_url, remote: /remote/i.test(p.location?.name || ''),
       postedAt: Date.parse(p.first_published || p.updated_at) || 0,
+      ...(details ? { postingId: String(p.id), text: htmlToText(p.content) } : {}),
     }));
   }
   if (ats === 'lever') {
@@ -145,10 +149,12 @@ export async function fetchJobs(ats, slug) {
       location: [p.categories?.location, ...(p.categories?.allLocations || [])].filter(Boolean).join('; '),
       dept: p.categories?.team || p.categories?.department || '', url: p.hostedUrl,
       remote: p.workplaceType === 'remote', postedAt: p.createdAt || 0,
+      ...(details ? { text: [p.descriptionPlain, ...(p.lists || []).map(l => `${l.text}\n${htmlToText(l.content)}`), p.additionalPlain].filter(Boolean).join('\n\n'),
+        comp: annual(p.salaryRange?.min, p.salaryRange?.max, p.salaryRange?.currency, /year|annual/i.test(p.salaryRange?.interval || '') ? 'Base' : null) } : {}),
     }));
   }
   if (ats === 'ashby') {
-    const r = await fetch(`https://api.ashbyhq.com/posting-api/job-board/${slug}`, { headers: UA });
+    const r = await fetch(`https://api.ashbyhq.com/posting-api/job-board/${slug}${details ? '?includeCompensation=true' : ''}`, { headers: UA });
     if (!r.ok) throw new Error(`ashby ${slug} ${r.status}`);
     const j = await r.json();
     return (j.jobs || []).filter(p => p.isListed !== false).map(p => ({
@@ -156,6 +162,7 @@ export async function fetchJobs(ats, slug) {
       location: [p.location, ...(p.secondaryLocations || []).map(s => s.location)].filter(Boolean).join('; '),
       dept: p.department || p.team || '', url: p.jobUrl,
       remote: !!p.isRemote || p.workplaceType === 'Remote', postedAt: Date.parse(p.publishedAt) || 0,
+      ...(details ? { text: p.descriptionPlain || htmlToText(p.descriptionHtml), comp: ashbyComp(p.compensation) } : {}),
     }));
   }
   if (ats === 'workable') {
@@ -170,6 +177,30 @@ export async function fetchJobs(ats, slug) {
     }));
   }
   return [];
+}
+
+/* ---------- posting details (job monitor only) ---------- */
+
+export function htmlToText(html) {
+  return (html || '')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ')
+    .replace(/<\s*(br|\/p|\/div|\/h[1-6]|\/li|\/ul|\/ol)[^>]*>/gi, '\n').replace(/<\s*li[^>]*>/gi, '\n• ')
+    .replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/[ \t]+/g, ' ').replace(/\n[ \t]+/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/** Annual USD range, or null. Basis is 'Base' or 'OTE'. */
+export function annual(min, max, currency, basis) {
+  if (!basis || (currency && currency !== 'USD')) return null;
+  const lo = Math.round(+min || 0), hi = Math.round(+max || +min || 0);
+  if (lo < 20000 || hi < lo || hi > 5e6) return null;   // hourly or junk
+  return { min: lo, max: hi, basis };
+}
+
+function ashbyComp(c) {
+  const comps = c?.summaryComponents || [];
+  const sal = comps.find(x => x.compensationType === 'Salary' && /YEAR/i.test(x.interval || ''));
+  const ote = /\bOTE\b|on[- ]target/i.test(c?.compensationTierSummary || '');
+  return sal ? annual(sal.minValue, sal.maxValue, sal.currencyCode, ote ? 'OTE' : 'Base') : null;
 }
 
 /* ---------- mention matching ---------- */

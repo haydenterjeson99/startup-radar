@@ -21,6 +21,7 @@ import { buildBrief, briefToText, setMeta } from './brief.js';
 import { collectFeedsA, collectFeedsB, collectJobs, collectEvents, isGtmRole } from './collect.js';
 import { SEED, sniffAts, fetchJobs, mentionMatchers } from './watchlist.js';
 import { FEED_TABS, SECTORS, ROLE_CORE, classifyLocation } from './sources.js';
+import { monitorRoute, runMonitorStage } from './monitor.js';
 
 const BATCH_ORDER = [
   'Fall 2026', 'Summer 2026', 'Spring 2026',
@@ -139,6 +140,14 @@ async function runStage(env, name) {
 }
 
 const BY_MINUTE = { 0: 'feedsA', 5: 'feedsB', 10: 'jobs', 15: 'events', 20: 'yc' };
+
+/* Private job monitor (monitor.js) on the free minutes after 20,
+   plus the first half of hour 10 for Notion writes. Kept out of
+   STAGES so /api/refresh and /api/sources never touch it. */
+const MONITOR_BY_MINUTE = {
+  9:  { 25: 'monitorSync', 30: 'monitorCheckA', 35: 'monitorCheckB', 40: 'monitorCheckC', 45: 'monitorWrite', 50: 'monitorWrite', 55: 'monitorWrite' },
+  10: { 0: 'monitorWrite', 5: 'monitorWrite', 10: 'monitorWrite', 15: 'monitorWrite', 20: 'monitorWrite', 25: 'monitorWrite', 30: 'monitorWrite' },
+};
 
 /* ---------- auth for writes ---------- */
 
@@ -261,7 +270,16 @@ async function proxy(url) {
 export default {
   async scheduled(event, env, ctx) {
     const d = new Date(event.scheduledTime);
-    const stage = BY_MINUTE[d.getUTCMinutes()];
+    const mon = MONITOR_BY_MINUTE[d.getUTCHours()]?.[d.getUTCMinutes()];
+    if (mon) {
+      if (env.MONITOR_ENABLED !== 'all') return;   // off until launch
+      ctx.waitUntil(runMonitorStage(env, mon).catch(async e => {
+        console.error('monitor stage failed', mon);
+        await setMeta(env, `monitor:${mon}`, { ok: false, at: Date.now(), error: e.message });
+      }));
+      return;
+    }
+    const stage = d.getUTCHours() === 9 ? BY_MINUTE[d.getUTCMinutes()] : null;
     if (!stage) return;
     ctx.waitUntil((async () => {
       const r = await runStage(env, stage);
@@ -360,6 +378,11 @@ export default {
           if (!STAGES[stage]) return json({ error: `stage must be one of ${Object.keys(STAGES).join(', ')}, brief` }, 400);
           return json(await runStage(env, stage));
         }
+
+        case '/api/monitor':
+          // Private job monitor. Every action needs the key.
+          if (!authorised(req, env)) return json({ error: 'needs passphrase (X-Radar-Key header)' }, 401);
+          return json(await monitorRoute(env, url, req), 200, { 'Cache-Control': 'no-store' });
 
         case '/health':
           return json({ ok: true, service: 'startup-intel', version: 2 });

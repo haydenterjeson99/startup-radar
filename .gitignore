@@ -2,3 +2,6 @@
 node_modules/
 .wrangler/
 *.log
+.dev.vars
+.dev.vars.*
+monitor-private/

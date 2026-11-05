@@ -3,7 +3,10 @@ main = "src/index.js"
 compatibility_date = "2026-05-01"
 
 [triggers]
-crons = ["*/5 9 * * *"]   # one stage every 5 min, 09:00–09:20 UTC — see src/index.js
+crons = ["*/5 9 * * *", "0-30/5 10 * * *"]   # radar 09:00–09:20 UTC; private monitor 09:25–10:30 — see src/index.js
+
+[vars]
+MONITOR_ENABLED = "all"   # "off" pauses the private job monitor
 
 [[d1_databases]]
 binding       = "DB"

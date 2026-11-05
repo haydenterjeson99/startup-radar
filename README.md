@@ -28,6 +28,10 @@ index.html ── GitHub Pages, no build step
                           │     09:10 jobs       watchlist job boards (Greenhouse/Lever/Ashby/Workable)
                           │     09:15 events     Luma (SF) + sector calendars
                           │     09:20 yc         YC directory → landscape; brief on weekdays
+                          ├── cron "0-30/5 10 * * *" + free minutes after 09:20 — private job monitor:
+                          │     09:25 sync       read the Notion job database
+                          │     09:30–09:40      three board checks, ~40 boards each
+                          │     09:45–10:30      Notion write queue (carries over nightly)
                           └── D1: startup-intel
 ```
 
@@ -91,6 +95,36 @@ site asks for it once and keeps it in that browser.
 Names that are ordinary words (Planet, Felt, Kettle, Zipline, Pano, One
 Concern) only match when the story also uses sector vocabulary.
 
+## Private job monitor
+
+`worker/src/monitor.js` (with `notion.js`). A separate, private feature that
+watches the job boards of every company in a Notion job database and adds
+matching roles to it. It shares the worker and the board readers
+(`fetchJobs`, `sniffAts`, `classifyLocation`) but nothing else:
+
+- **Not public.** Its data lives only in D1 tables prefixed `monitor_` and is
+  read only through `/api/monitor`, which needs `X-Radar-Key`. The site, the
+  brief, news matching, `/api/sources` and `/api/refresh` never see it. The
+  company list and Notion IDs are never in this repo.
+- **Companies** come from the Notion database. A new company row with a
+  careers URL has its board (Greenhouse, Lever, Ashby, Workable) detected on
+  the next run; other boards are marked for a manual check.
+- **Filters.** Title: `ROLE_CORE` plus a few strategy/systems titles, minus
+  `ROLE_EXCLUDE` and engineering/product roles (GTM engineer titles kept).
+  Location: Bay Area or remote US, plus one other metro at manager level.
+- **Rows.** New roles are created with the posting text in the page body and
+  structured pay when the board gives it. Dedupe is on the posting id / URL
+  without its query string. Roles that leave the board are marked Closed;
+  rows are never deleted. Rows added by hand only ever get Closed.
+- **Limits.** Each stage stays under the free plan's 50 requests; Notion
+  writes are paced, retried on 429, and queued across nights. A board that
+  fails 3 nights running is switched to a manual check.
+- A separate scheduled Claude task scores fit in Notion; the worker never
+  writes those fields.
+
+Secrets: `NOTION_TOKEN` (Notion connection) and `JOB_DS_ID` (data source).
+`MONITOR_ENABLED` in `wrangler.toml` is `all` or `off`.
+
 ## Endpoints
 
 | Route | Returns |
@@ -103,6 +137,7 @@ Concern) only match when the story also uses sector vocabulary.
 | `GET /api/sources` | last run of every stage, per source |
 | `GET/POST/DELETE /api/watchlist` | watchlist (writes need `X-Radar-Key`) |
 | `GET /api/refresh?stage=feedsA\|feedsB\|jobs\|events\|yc\|brief` | run a stage now (needs `X-Radar-Key`) |
+| `GET /api/monitor?action=status\|companies\|roles\|queue\|dryrun\|stage` | private job monitor (needs `X-Radar-Key`) |
 | `GET /?url=…` | CORS proxy for the reader |
 | `GET /health` | liveness |
 
@@ -112,6 +147,8 @@ Concern) only match when the story also uses sector vocabulary.
 cd worker
 npx wrangler d1 execute startup-intel --remote --file=schema.sql   # additive, safe to re-run
 npx wrangler secret put RADAR_KEY                                   # once
+npx wrangler secret put NOTION_TOKEN                                # once, job monitor
+npx wrangler secret put JOB_DS_ID                                   # once, job monitor
 npx wrangler deploy
 ```
 
