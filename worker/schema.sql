@@ -152,3 +152,26 @@ CREATE TABLE IF NOT EXISTS monitor_queue (
   created_at  INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS monitor_queue_ref ON monitor_queue(kind, ref);
+
+/* ---------- company intel store (intel.js) ----------
+   Kept forever and built up nightly; also created on first use. */
+CREATE TABLE IF NOT EXISTS orgs (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, website TEXT, city TEXT, bay INTEGER DEFAULT 0,
+  sectors TEXT, one_liner TEXT, yc_slug TEXT, yc_batch TEXT, team_size INTEGER, yc_hiring INTEGER DEFAULT 0,
+  ats TEXT, ats_slug TEXT, open_roles INTEGER, gtm_roles INTEGER, gtm_titles TEXT, roles_checked INTEGER,
+  sources TEXT, first_seen INTEGER NOT NULL, last_seen INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS org_news (
+  org_id TEXT NOT NULL, article_id TEXT NOT NULL, title TEXT, link TEXT, source TEXT,
+  published_at INTEGER, funding INTEGER DEFAULT 0, PRIMARY KEY (org_id, article_id));
+CREATE INDEX IF NOT EXISTS idx_org_news_org ON org_news(org_id, published_at DESC);
+CREATE TABLE IF NOT EXISTS rounds (
+  id TEXT PRIMARY KEY, org_id TEXT NOT NULL, org_name TEXT, kind TEXT, amount_usd INTEGER, valuation_usd INTEGER,
+  investors TEXT, acquirer TEXT, article_id TEXT, title TEXT, link TEXT, source TEXT,
+  announced_at INTEGER, bay INTEGER DEFAULT 0, sectors TEXT, first_seen INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_rounds_org ON rounds(org_id, announced_at DESC);
+CREATE INDEX IF NOT EXISTS idx_rounds_article ON rounds(article_id);
+CREATE TABLE IF NOT EXISTS org_daily (
+  org_id TEXT NOT NULL, day TEXT NOT NULL, open_roles INTEGER, gtm_roles INTEGER, PRIMARY KEY (org_id, day));
+CREATE TABLE IF NOT EXISTS suggestions (
+  org_id TEXT PRIMARY KEY, reasons TEXT, score REAL, status TEXT NOT NULL DEFAULT 'open',
+  first_seen INTEGER NOT NULL, updated_at INTEGER NOT NULL);

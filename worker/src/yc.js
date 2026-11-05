@@ -66,6 +66,9 @@ export async function fetchBatch(key, batch) {
     tags:      h.tags || [],
     teamSize:  h.team_size || 0,
     status:    h.status || '',
+    website:   h.website || '',
+    location:  h.all_locations || '',
+    isHiring:  !!h.isHiring,
     url:       h.slug ? `https://www.ycombinator.com/companies/${h.slug}` : (h.website || ''),
   }));
 }

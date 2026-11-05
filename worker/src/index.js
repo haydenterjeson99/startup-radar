@@ -22,6 +22,7 @@ import { collectFeedsA, collectFeedsB, collectJobs, collectEvents, isGtmRole } f
 import { SEED, sniffAts, fetchJobs, mentionMatchers } from './watchlist.js';
 import { FEED_TABS, SECTORS, ROLE_CORE, classifyLocation } from './sources.js';
 import { monitorRoute, runMonitorStage } from './monitor.js';
+import { runIntel, watchView, companyView, dealsByArticle, backfillCompany, ensureIntelSchema, slugify } from './intel.js';
 
 const BATCH_ORDER = [
   'Fall 2026', 'Summer 2026', 'Spring 2026',
@@ -125,6 +126,7 @@ const STAGES = {
   jobs:   async env => collectJobs(env, await loadWatchlist(env)),
   events: async env => collectEvents(env),
   yc:     async env => { const l = await rebuildLandscape(env); return { current: l.current, fresh: l.freshCount }; },
+  intel:  async env => runIntel(env, await loadWatchlist(env)),
 };
 
 async function runStage(env, name) {
@@ -140,6 +142,8 @@ async function runStage(env, name) {
 }
 
 const BY_MINUTE = { 0: 'feedsA', 5: 'feedsB', 10: 'jobs', 15: 'events', 20: 'yc' };
+/* The intel store (intel.js) runs once everything else has landed. */
+const INTEL_AT = { hour: 10, minute: 35 };
 
 /* Private job monitor (monitor.js) on the free minutes after 20,
    plus the first half of hour 10 for Notion writes. Kept out of
@@ -197,14 +201,20 @@ async function bayArea(env) {
     watchlist: wl.map(w => ({ ...w, gtmRoles: counts[w.id] || 0, lastNews: lastNews[w.id] || null })),
     jobs,
     mentions: arts.filter(a => a.mentions.length).slice(0, 80),
-    funding: arts.filter(a => a.funding && a.sectors.length).slice(0, 80),
+    // Bay Area raises in the three sectors and any watchlist deal are the
+    // focus; other raises in the sectors ride along, flagged, below them.
+    funding: (await withDeals(env, arts.filter(a => a.funding && (a.sectors.length || a.mentions.length)).slice(0, 120)))
+      .map(a => ({ ...a, focus: !!(a.mentions.length || (a.sectors.length && (a.bay || a.deal?.bay))) })),
     events: (await env.DB.prepare('SELECT * FROM events WHERE start_at > ? ORDER BY start_at LIMIT 60').bind(now - 3 * 3600 * 1000).all()).results,
   };
 }
 
-/* ---------- watchlist writes ---------- */
+async function withDeals(env, list) {
+  const deals = await dealsByArticle(env, list.map(a => a.id)).catch(() => ({}));
+  return list.map(a => ({ ...a, deal: deals[a.id] || null }));
+}
 
-const slugify = s => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48);
+/* ---------- watchlist writes ---------- */
 
 async function upsertWatch(env, body) {
   const now = Date.now();
@@ -270,6 +280,10 @@ async function proxy(url) {
 export default {
   async scheduled(event, env, ctx) {
     const d = new Date(event.scheduledTime);
+    if (d.getUTCHours() === INTEL_AT.hour && d.getUTCMinutes() === INTEL_AT.minute) {
+      ctx.waitUntil(runStage(env, 'intel').then(r => { if (!r.ok) console.error('intel failed', r.error); }));
+      return;
+    }
     const mon = MONITOR_BY_MINUTE[d.getUTCHours()]?.[d.getUTCMinutes()];
     if (mon) {
       if (env.MONITOR_ENABLED !== 'all') return;   // off until launch
@@ -328,6 +342,40 @@ export default {
         case '/api/bayarea':
           return json(await bayArea(env), 200, { 'Cache-Control': 'no-store' });
 
+        case '/api/watch':
+          return json(await watchView(env, await loadWatchlist(env), Object.fromEntries(Object.entries(SECTORS).map(([k, s]) => [k, s.label]))),
+                      200, { 'Cache-Control': 'no-store' });
+
+        case '/api/company': {
+          const id = url.searchParams.get('id') || '';
+          const w = (await loadWatchlist(env)).find(x => x.id === id) || null;
+          const v = await companyView(env, id, w);
+          return v ? json(v, 200, { 'Cache-Control': 'no-store' }) : json({ error: 'unknown company' }, 404);
+        }
+
+        case '/api/suggestions': {
+          if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
+          if (!authorised(req, env)) return json({ error: 'wrong or missing passphrase' }, 401);
+          await ensureIntelSchema(env);
+          const b = await req.json().catch(() => ({}));
+          const org = await env.DB.prepare('SELECT * FROM orgs WHERE id=?').bind(b.id || '').first();
+          if (!org) return json({ error: 'unknown company' }, 404);
+          if (b.action === 'dismiss') {
+            await env.DB.prepare(`UPDATE suggestions SET status='dismissed', updated_at=? WHERE org_id=?`).bind(Date.now(), org.id).run();
+            return json({ ok: true });
+          }
+          if (b.action !== 'follow') return json({ error: 'action must be follow or dismiss' }, 400);
+          const sectors = JSON.parse(org.sectors || '[]');
+          const r = await upsertWatch(env, { id: org.id, name: org.name, website: org.website || '', city: org.city || '',
+            sector: sectors[0] || 'geo', note: org.one_liner || '', starred: true,
+            ...(org.ats ? { ats: org.ats, slug: org.ats_slug } : {}) });
+          if (r.error) return json(r, 400);
+          await env.DB.prepare(`UPDATE suggestions SET status='followed', updated_at=? WHERE org_id=?`).bind(Date.now(), org.id).run();
+          const w = (await loadWatchlist(env)).find(x => x.id === org.id);
+          if (w) r.news = await backfillCompany(env, w);
+          return json(r);
+        }
+
         case '/api/sources': {
           const rows = (await env.DB.prepare(`SELECT key, value FROM meta WHERE key LIKE 'stage:%'`).all()).results;
           return json(Object.fromEntries(rows.map(r => [r.key.slice(6), JSON.parse(r.value)])));
@@ -344,6 +392,10 @@ export default {
               return json({ ok: true });
             }
             const r = await upsertWatch(env, body);
+            if (!r.error) {
+              const w = (await loadWatchlist(env)).find(x => x.id === r.id);
+              if (w) r.news = await backfillCompany(env, w).catch(() => 0);
+            }
             return json(r, r.error ? 400 : 200);
           }
           if (req.method === 'DELETE') {
@@ -388,7 +440,7 @@ export default {
           return json({ ok: true, service: 'startup-intel', version: 2 });
 
         default:
-          return text('startup-intel v2. Routes: /api/brief /api/brief.txt /api/brief/preview /api/landscape /api/articles /api/bayarea /api/watchlist /api/sources /health');
+          return text('startup-intel v2. Routes: /api/brief /api/brief.txt /api/brief/preview /api/landscape /api/articles /api/bayarea /api/watch /api/company /api/suggestions /api/watchlist /api/sources /health');
       }
     } catch (e) {
       console.error(e);
