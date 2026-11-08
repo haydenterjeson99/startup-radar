@@ -219,6 +219,49 @@ main{max-width:1120px;margin:0 auto;padding:22px var(--pad) 72px}
 .act-btn{font-size:12px;font-weight:600;color:var(--then);text-decoration:none;background:none;border:none;cursor:pointer;font-family:inherit;padding:2px 0}
 .act-btn:hover{opacity:.75}
 .empty{grid-column:1/-1;text-align:center;padding:56px 20px;color:var(--muted);font-size:14px}
+.tier2{font-family:var(--mono);font-size:9.5px;color:var(--muted);border:1px solid var(--rule);border-radius:20px;padding:1px 7px;white-space:nowrap}
+
+/* ============ BAY AREA ============ */
+.bmark.revops{background:var(--now);color:#15181B}
+.bmark.gtm{background:var(--now-wash);color:var(--now)}
+.bmark.watch{background:rgba(42,114,178,.14);color:var(--then)}
+.bmark.funding{background:rgba(31,122,92,.14);color:var(--up)}
+.bmark.event{background:rgba(180,71,47,.13);color:var(--down)}
+.bmark.remote{background:var(--surface-2);color:var(--muted)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 1rem}
+.chip{font-family:var(--ui);font-size:12px;font-weight:600;border:1px solid var(--rule);background:var(--surface);color:var(--ink-2);border-radius:20px;padding:5px 11px;cursor:pointer}
+.chip.on{background:var(--ink);color:var(--ground);border-color:var(--ink)}
+.chip:focus-visible,.subtab:focus-visible,.nav button:focus-visible,.wbtn:focus-visible{outline:2px solid var(--then);outline-offset:2px}
+.bitem .new-tag{font-family:var(--mono);font-size:9.5px;font-weight:600;color:var(--then);margin-left:6px;letter-spacing:.06em}
+.wl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+.wl-card{background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius);padding:14px 15px;display:flex;flex-direction:column;gap:7px;box-shadow:var(--shadow)}
+.wl-card.starred{border-color:var(--now);box-shadow:0 0 0 1px var(--now) inset}
+.wl-top{display:flex;align-items:flex-start;gap:8px}
+.wl-name{font-family:var(--display);font-weight:700;font-size:15px;letter-spacing:-.01em;line-height:1.25;flex:1}
+.wl-name a{text-decoration:none}
+.wl-name a:hover{color:var(--now)}
+.wl-meta{font-family:var(--mono);font-size:10.5px;color:var(--muted);letter-spacing:.02em}
+.wl-note{font-size:12.5px;color:var(--ink-2);line-height:1.5}
+.wl-news{font-size:12px;color:var(--muted);line-height:1.45;border-left:2px solid var(--rule-strong);padding-left:8px}
+.wl-news a{text-decoration:none;color:var(--ink-2)}
+.wl-foot{margin-top:auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding-top:4px}
+.wl-roles{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--now)}
+.wbtn{background:none;border:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;color:var(--then);padding:2px 0}
+.wbtn.star{font-size:17px;line-height:1;color:var(--rule-strong);padding:0 2px}
+.wbtn.star.on{color:var(--now)}
+.wbtn.rm{color:var(--muted)}
+.wl-add{background:var(--surface);border:1px solid var(--rule);border-radius:var(--radius);padding:16px;margin-bottom:1.2rem}
+.wl-add h3{font-size:1rem;margin-bottom:.7rem}
+.wl-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.wl-form label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;font-weight:600;color:var(--muted)}
+.wl-form input,.wl-form select{font:inherit;font-size:14px;color:var(--ink);background:var(--ground);border:1px solid var(--rule-strong);border-radius:7px;padding:8px 10px;min-width:0}
+.wl-form .full{grid-column:1/-1}
+.wl-actions{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
+.btn{background:var(--ink);color:var(--ground);border:none;border-radius:8px;padding:9px 15px;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.btn:disabled{opacity:.5;cursor:default}
+.wl-msg{font-size:12.5px;color:var(--muted)}
+.wl-msg.err{color:var(--down)}
+.sec-note{font-size:12.5px;color:var(--muted);margin:.2rem 0 1rem;max-width:72ch}
 
 /* ============ READER ============ */
 #reader{position:fixed;inset:0;background:var(--ground);z-index:400;display:none;flex-direction:column}
@@ -248,7 +291,7 @@ main{max-width:1120px;margin:0 auto;padding:22px var(--pad) 72px}
   .metric .m-k{max-width:none}
   .gap{grid-template-columns:1fr;gap:.5rem}
   .bitem{grid-template-columns:auto 1fr;gap:.4rem .7rem}
-  .bitem .stat{grid-column:2;text-align:left;margin-top:.15rem}
+  .bitem .stat{grid-column:2;text-align:left;margin-top:.15rem;white-space:normal}
   #grid{grid-template-columns:1fr}
   .htitle{font-size:14px}
 }
@@ -278,12 +321,25 @@ main{max-width:1120px;margin:0 auto;padding:22px var(--pad) 72px}
 
 <nav class="nav" id="nav">
   <button data-view="brief" class="on">Brief <span class="pill" id="pill-brief">·</span></button>
-  <button data-view="landscape">Landscape <span class="pill" id="pill-land">·</span></button>
+  <button data-view="bayarea">Bay Area <span class="pill" id="pill-bay">·</span></button>
   <button data-view="feed">Feed <span class="pill" id="pill-feed">0</span></button>
+  <button data-view="landscape">Landscape <span class="pill" id="pill-land">·</span></button>
 </nav>
 
 <main>
   <section class="view on" id="view-brief"><div class="skel">Loading this morning's brief…</div></section>
+  <section class="view" id="view-bayarea">
+    <div class="brief-mast">
+      <div class="row">
+        <p class="eyebrow">Bay Area · EO &amp; geospatial · drones &amp; defense · climate risk</p>
+        <p class="eyebrow" id="bay-stamp"></p>
+      </div>
+      <h1>Who's building,<br>raising and hiring.</h1>
+      <p class="brief-headline" id="bay-summary">Loading…</p>
+    </div>
+    <div class="subtabs" id="bay-tabs"></div>
+    <div id="bay-body"><div class="skel">Loading Bay Area data…</div></div>
+  </section>
   <section class="view" id="view-landscape"><div class="skel">Loading the landscape…</div></section>
   <section class="view" id="view-feed">
     <div class="subtabs" id="subtabs"></div>
@@ -305,23 +361,22 @@ main{max-width:1120px;margin:0 auto;padding:22px var(--pad) 72px}
 /* ============================================================
    STARTUP RADAR
    ------------------------------------------------------------
-   Three views over one question: where are people building
-   companies, and what are they building with?
+   Four views:
 
-     Brief      what changed since yesterday
+     Brief      only what is new since the last brief, never repeated
+     Bay Area   roles, funding, watchlist news and events in Hayden's
+                three sectors, plus the editable watchlist
+     Feed       the news wire, read nightly from publisher feeds
      Landscape  the structural read of the current YC batch
-     Feed       the live news wire
 
-   Feed articles are fetched client-side through the NSL proxy
-   (unchanged, and it also holds the dismiss state). Landscape and
-   Brief are served pre-computed by the startup-intel worker, which
-   re-pulls the YC directory nightly — so neither view pays for a
-   few hundred requests at page load.
+   Everything is served pre-computed by the startup-intel worker,
+   which re-reads its sources every night (worker/src/index.js has
+   the schedule), so no view pays for hundreds of requests at load.
    ============================================================ */
 
-const API_BASE   = 'https://nsl-proxy.haydenmterjeson.workers.dev';   // feeds + dismiss sync
-const INTEL_BASE = 'https://startup-intel.haydenmterjeson.workers.dev'; // landscape + brief
-const PROXY_BASE = API_BASE + '/?url=';
+const INTEL_BASE = 'https://startup-intel.haydenmterjeson.workers.dev'; // everything: brief, feed, Bay Area, dismiss sync
+const API_BASE   = INTEL_BASE;
+const PROXY_BASE = INTEL_BASE + '/?url=';   // reader fallback only
 const JINA_READER_BASE = 'https://r.jina.ai/';
 
 const FETCH_TIMEOUT_MS        = 15000;
@@ -341,88 +396,31 @@ function getDeviceId() {
 }
 const DEVICE_ID = getDeviceId();
 
-/* ---------- noise filters ---------- */
-const STOCK_NOISE_TERMS   = ['nasdaq','nyse','price target','buy rating','sell rating','analyst','market cap','p/e ratio','wall street','zacks rank','dow jones'];
-const STOCK_NOISE_SOURCES = ['fool.com','zacks','marketbeat','benzinga','tipranks','seekingalpha','investorplace','nasdaq.com','finance.yahoo'];
-function isStockNoise(a) {
-  const blob = `${a.title} ${a.excerpt}`.toLowerCase();
-  const src  = (a.source || '').toLowerCase();
-  if (STOCK_NOISE_SOURCES.some(s => src.includes(s))) return true;
-  return STOCK_NOISE_TERMS.filter(t => blob.includes(t)).length >= 2;
-}
-
-/* ---------- feeds ---------- */
-const FEEDS = [
-  {
-    id:'formation', label:'Company Formation', color:'#BE7F09', bg:'rgba(190,127,9,.13)',
-    sources:[
-      { type:'direct', url:'https://techcrunch.com/category/startups/feed/', source:'TechCrunch' },
-      { type:'bing',   query:'"emerges from stealth" startup' },
-      { type:'bing',   query:'"seed round" startup raises' },
-      { type:'google', query:'("emerges from stealth" OR "launches out of stealth") startup' },
-      { type:'google', query:'"Y Combinator" batch startup' },
-    ]
-  },
-  {
-    id:'cleantech', label:'Clean Tech & Renewables', color:'#2A9D8F', bg:'rgba(42,157,143,.14)',
-    sources:[
-      { type:'bing',   query:'"climate tech" startup' },
-      { type:'bing',   query:'"climate tech" funding' },
-      { type:'bing',   query:'"clean tech" startup' },
-      { type:'bing',   query:'"renewable energy" startup' },
-      { type:'bing',   query:'"carbon capture" startup' },
-      { type:'google', query:'("climate tech" OR "clean tech") (startup OR funding OR seed)' },
-      { type:'google', query:'("renewable energy" OR "carbon capture") (startup OR funding)' },
-      { type:'direct', url:'https://www.canarymedia.com/rss.rss', source:'Canary Media' },
-    ]
-  },
-  {
-    id:'maptech', label:'Map Tech & Geospatial', color:'#E85D04', bg:'rgba(232,93,4,.13)',
-    sources:[
-      { type:'bing',   query:'"geospatial" startup' },
-      { type:'bing',   query:'"geospatial" funding' },
-      { type:'bing',   query:'"mapping technology" startup' },
-      { type:'bing',   query:'"earth observation" startup' },
-      { type:'bing',   query:'"lidar" startup funding' },
-      { type:'google', query:'("geospatial" OR "earth observation") (startup OR funding)' },
-      { type:'direct', url:'https://www.geoconnexion.com/news/feed.rss', source:'GeoConnexion' },
-    ]
-  },
-  {
-    id:'legacy', label:'Legacy B2B Disruption', color:'#2A72B2', bg:'rgba(42,114,178,.14)',
-    sources:[
-      { type:'bing',   query:'"vertical saas" startup' },
-      { type:'bing',   query:'"construction tech" startup' },
-      { type:'bing',   query:'"proptech" funding' },
-      { type:'bing',   query:'"logistics tech" startup' },
-      { type:'bing',   query:'"supply chain software" startup' },
-      { type:'bing',   query:'"manufacturing AI" startup' },
-      { type:'google', query:'("vertical saas" OR "proptech") (startup OR funding)' },
-      { type:'google', query:'("construction tech" OR "logistics tech") startup' },
-      { type:'direct', url:'https://www.constructiondive.com/feeds/news/', source:'Construction Dive' },
-      { type:'direct', url:'https://www.utilitydive.com/feeds/news/',      source:'Utility Dive' },
-    ]
-  },
-  {
-    id:'frontier', label:'Robotics & Defense', color:'#B4472F', bg:'rgba(180,71,47,.13)',
-    sources:[
-      { type:'bing',   query:'robotics startup funding' },
-      { type:'bing',   query:'"defense tech" startup funding' },
-      { type:'bing',   query:'"humanoid robot" startup' },
-      { type:'google', query:'(robotics OR "defense tech" OR drone) startup (funding OR raises)' },
-      { type:'google', query:'"data center" startup (funding OR buildout OR nuclear)' },
-    ]
-  },
-];
+/* ---------- feed tabs ----------
+   Sources now live in the worker (worker/src/sources.js) and are
+   pulled nightly; the page just reads /api/articles. Colours stay
+   here because they are presentation. */
+const TAB_STYLE = {
+  formation:{color:'#BE7F09', bg:'rgba(190,127,9,.13)'},
+  geo:      {color:'#E85D04', bg:'rgba(232,93,4,.13)'},
+  defense:  {color:'#B4472F', bg:'rgba(180,71,47,.13)'},
+  risk:     {color:'#7A5BB5', bg:'rgba(122,91,181,.14)'},
+  cleantech:{color:'#2A9D8F', bg:'rgba(42,157,143,.14)'},
+  legacy:   {color:'#2A72B2', bg:'rgba(42,114,178,.14)'},
+};
+let FEEDS = [];   // [{id,label,color,bg}] — filled from /api/articles
 
 /* ---------- state ---------- */
 let allArticles    = [];
-let hiddenArticles = JSON.parse(localStorage.getItem('sr_hidden') || '{}');
+let hiddenArticles = (()=>{ try{ return JSON.parse(localStorage.getItem('sr_hidden') || '{}'); }catch{ return {}; } })();
 let activeTab      = 'all';
 let activeView     = 'brief';
 let isLoading      = false;
 let landscape      = null;
 let brief          = null;
+let bay            = null;
+let bayTab         = 'roles';
+let bayFilter      = {revops:false, bayOnly:false};
 
 /* ---------- helpers ---------- */
 function fnv1a(str){let h=0x811c9dc5;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,0x01000193);}return ('0000000'+(h>>>0).toString(16)).slice(-8);}
@@ -521,113 +519,28 @@ function pruneHiddenArticles(){
    FEED — RSS parsing, cache and rendering
    ============================================================ */
 
-function resolveGoogleNewsLink(rawLink, sourceUrlAttr){
-  if(sourceUrlAttr && /^https?:\/\//.test(sourceUrlAttr)) return sourceUrlAttr;
-  if(!rawLink) return rawLink;
-  try{
-    const u=new URL(rawLink);
-    if(!u.hostname.endsWith('news.google.com')) return rawLink;
-    return u.searchParams.get('url') || rawLink;
-  }catch{ return rawLink; }
-}
-
-function parseXml(xmlStr, feed, sourceType){
-  try{
-    const doc=new DOMParser().parseFromString(xmlStr,'application/xml');
-    if(doc.querySelector('parsererror')) return [];
-    return Array.from(doc.querySelectorAll('item')).map(el=>{
-      let title=(el.querySelector('title')?.textContent||'').replace(/\s[-–]\s[^-–]{1,50}$/,'').trim();
-      let link=el.querySelector('link')?.textContent||el.querySelector('guid')?.textContent||'#';
-      const sourceEl=el.querySelector('source');
-      let source=sourceEl?.textContent||feed.label;
-      if(sourceType==='google') link=resolveGoogleNewsLink(link,sourceEl?.getAttribute('url'));
-      const publishedAt=new Date(el.querySelector('pubDate')?.textContent||'').getTime()||0;
-      const excerpt=(new DOMParser().parseFromString(el.querySelector('description')?.textContent||'','text/html').body.textContent||'').trim().slice(0,200);
-      if(!title||title.length<6) return null;
-      return {feedId:feed.id,id:articleId({title}),title,link,source,publishedAt,excerpt};
-    }).filter(Boolean);
-  }catch{ return []; }
-}
-
-async function fetchSource(source, feed){
-  let url='';
-  if(source.type==='bing')        url=`https://www.bing.com/news/search?q=${encodeURIComponent(source.query)}&format=rss`;
-  else if(source.type==='google') url=`https://news.google.com/rss/search?q=${encodeURIComponent(source.query)}&hl=en-US&gl=US&ceid=US:en`;
-  else                            url=source.url;
-  const body=await fetchUrl(url);
-  if(!body) return [];
-  let parsed=parseXml(body,feed,source.type);
-  if(source.type==='direct'&&source.source) parsed=parsed.map(a=>({...a,source:a.source||source.source}));
-  return parsed.filter(a=>(Date.now()-a.publishedAt)<=MAX_AGE_MS && !isStockNoise(a));
-}
-
-/* ---------- IndexedDB cache ---------- */
-const idb={
-  async open(){
-    return new Promise((res,rej)=>{
-      const req=indexedDB.open('startup_radar_db',1);
-      req.onupgradeneeded=()=>{ if(!req.result.objectStoreNames.contains('articles')) req.result.createObjectStore('articles',{keyPath:'id'}); };
-      req.onsuccess=()=>res(req.result); req.onerror=()=>rej(req.error);
-    });
-  },
-  async get(){
-    try{ const d=await this.open(); return await new Promise(r=>d.transaction('articles').objectStore('articles').getAll().onsuccess=e=>r(e.target.result)); }
-    catch{ return []; }
-  },
-  async put(arts){
-    try{
-      const d=await this.open();
-      await new Promise((resolve,reject)=>{
-        const tx=d.transaction('articles','readwrite'),st=tx.objectStore('articles');
-        arts.forEach(a=>st.put(a));
-        tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error); tx.onabort=()=>reject(tx.error);
-      });
-      await new Promise((resolve,reject)=>{
-        const tx2=d.transaction('articles','readwrite'),st2=tx2.objectStore('articles');
-        st2.openCursor().onsuccess=e=>{const c=e.target.result; if(c){ if(Date.now()-c.value.publishedAt>MAX_AGE_MS) c.delete(); c.continue(); }};
-        tx2.oncomplete=resolve; tx2.onerror=()=>reject(tx2.error); tx2.onabort=()=>reject(tx2.error);
-      });
-    }catch{}
-  }
-};
-
 async function loadFeeds(){
   if(isLoading) return; isLoading=true;
   document.getElementById('progress-wrap').classList.add('visible');
-  document.getElementById('refresh').classList.add('spin');
-
+  document.getElementById('progress-bar').style.width='35%';
   await syncDismissesFromServer();
-
-  const local=await idb.get();
-  if(local.length){ allArticles=local; renderSubtabs(); renderGrid(); }
-
-  const sources=FEEDS.flatMap(feed=>feed.sources.map(src=>({src,feed})));
-  const total=sources.length; let done=0;
-  const merged=new Map(allArticles.map(a=>[a.id,a]));
-
-  const jobs=sources.map(async({src,feed})=>{
+  try{
+    const res=await fetch(`${INTEL_BASE}/api/articles?days=30`,{signal:AbortSignal.timeout(20000)});
+    if(!res.ok) throw new Error(res.status);
+    const data=await res.json();
+    FEEDS=data.tabs.map(t=>({...t,...(TAB_STYLE[t.id]||{color:'var(--muted)',bg:'var(--surface-2)'})}));
+    allArticles=data.articles.map(a=>({...a,feedId:a.tab}));
+    try{ localStorage.setItem('sr_feed',JSON.stringify({tabs:data.tabs,articles:data.articles.slice(0,400)})); }catch{}
+  }catch{
     try{
-      const items=await fetchSource(src,feed);
-      items.forEach(a=>{
-        const existing=merged.get(a.id);
-        if(existing && a.excerpt==='' && existing.excerpt!=='') return;
-        merged.set(a.id,a);
-      });
-      allArticles=[...merged.values()].sort((a,b)=>b.publishedAt-a.publishedAt);
-    }catch(e){ console.warn('source failed',src,e); }
-    finally{
-      done++;
-      document.getElementById('progress-bar').style.width=`${Math.round((done/total)*100)}%`;
-      renderSubtabs(); renderGrid();
-    }
-  });
-
-  await Promise.allSettled(jobs);
+      const c=JSON.parse(localStorage.getItem('sr_feed')||'null');
+      if(c){ FEEDS=c.tabs.map(t=>({...t,...(TAB_STYLE[t.id]||{})})); allArticles=c.articles.map(a=>({...a,feedId:a.tab})); }
+    }catch{}
+  }
   pruneHiddenArticles();
-  idb.put(allArticles);
+  document.getElementById('progress-bar').style.width='100%';
+  renderSubtabs(); renderGrid();
   document.getElementById('progress-wrap').classList.remove('visible');
-  document.getElementById('refresh').classList.remove('spin');
-  stamp();
   isLoading=false;
 }
 
@@ -654,14 +567,15 @@ function renderSubtabs(){
 
 function renderGrid(){
   const grid=document.getElementById('grid'), list=visibleList();
-  if(!list.length){ grid.innerHTML=`<div class="empty">No articles yet. Hit Refresh to scan the wire.</div>`; return; }
+  if(!list.length){ grid.innerHTML=`<div class="empty">${isLoading?'Loading…':'No articles in this tab yet. Sources are re-read every night.'}</div>`; return; }
   grid.innerHTML=list.map(a=>{
-    const f=FEEDS.find(x=>x.id===a.feedId)||FEEDS[0];
+    const f=FEEDS.find(x=>x.id===a.feedId)||FEEDS[0]||{label:'',color:'var(--muted)',bg:'var(--surface-2)'};
     return `<div class="card-wrap" data-id="${a.id}">
       <div class="card-under">Hidden</div>
       <div class="card" data-id="${a.id}">
         <div class="card-top">
           <span class="badge" style="color:${f.color};background:${f.bg}">${escHtml(f.label)}</span>
+          ${a.tier===2?'<span class="tier2" title="Found by keyword search, not a publisher feed">via search</span>':''}
           <span class="card-src">${escHtml(a.source)}</span>
         </div>
         <div class="card-title"><a href="${escHtml(a.link)}" target="_blank" rel="noopener">${escHtml(a.title)}</a></div>
@@ -702,43 +616,219 @@ async function loadIntel(){
 }
 
 /* ---------- brief ---------- */
+const KIND_LABEL={revops:'RevOps',gtm:'Role',watch:'Watchlist',funding:'Funding',news:'News',event:'Event',new:'New',up:'Moved',down:'Moved',remote:'Remote',closing:'Closing',open:'Open'};
+function bitemHtml(it){
+  return `<div class="bitem">
+    <span class="bmark ${escHtml(it.kind)}">${escHtml(KIND_LABEL[it.kind]||it.kind)}</span>
+    <div class="lbl">${it.url?`<a href="${escHtml(it.url)}" target="_blank" rel="noopener">${escHtml(it.label)}</a>`:escHtml(it.label)}${it.isNew?'<span class="new-tag">NEW</span>':''}</div>
+    <div class="stat">${escHtml(it.stat||'')}</div>
+    ${it.detail?`<div class="det">${escHtml(it.detail)}</div>`:''}
+  </div>`;
+}
+
 function renderBrief(){
   const el=document.getElementById('view-brief');
-  if(!brief){ el.innerHTML=`<div class="err">The brief hasn't been generated yet. It rebuilds every morning — try Refresh.</div>`; return; }
+  if(!brief){ el.innerHTML=`<div class="err">The brief hasn't been generated yet. It's built every weekday morning.</div>`; return; }
 
   const d=new Date(brief.generatedAt);
   const day=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  const since=brief.since?new Date(brief.since).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}):'';
 
   const sections=brief.sections.map(s=>`
     <div class="bsec">
       <div class="bsec-h"><h3>${escHtml(s.title)}</h3></div>
       ${s.lead?`<p class="bsec-lead">${escHtml(s.lead)}</p>`:''}
-      <div class="blist">
-        ${s.items.map(it=>`
-          <div class="bitem">
-            <span class="bmark ${escHtml(it.kind)}">${escHtml(it.kind)}</span>
-            <div class="lbl">${it.url?`<a href="${escHtml(it.url)}" target="_blank" rel="noopener">${escHtml(it.label)}</a>`:escHtml(it.label)}</div>
-            <div class="stat">${escHtml(it.stat||'')}</div>
-            ${it.detail?`<div class="det">${escHtml(it.detail)}</div>`:''}
-          </div>`).join('')}
-      </div>
+      ${s.items.length?`<div class="blist">${s.items.map(bitemHtml).join('')}</div>`:''}
     </div>`).join('');
+  const nItems=brief.sections.reduce((n,s)=>n+s.items.length,0);
 
   el.innerHTML=`
     <div class="brief-mast">
       <div class="row">
         <p class="eyebrow">Morning brief</p>
-        <p class="eyebrow">${escHtml(day)} · ${escHtml(brief.batch)} · n=${brief.batchSize}</p>
+        <p class="eyebrow">${escHtml(day)}${since?` · new since ${escHtml(since)}`:''}</p>
       </div>
-      <h1>What moved<br>while you slept.</h1>
+      <h1>${brief.quiet?'A quiet<br>morning.':'What’s new<br>since yesterday.'}</h1>
       <p class="brief-headline">${escHtml(brief.headline)}</p>
     </div>
     ${sections}
     <div class="method">
-      <p><b>How to read this.</b> Every line traces to a count in the nightly snapshot — nothing here is model-generated, so it cannot drift or invent a company. "pp" is percentage points of batch share, measured against the same season a year earlier.</p>
+      <p><b>How to read this.</b> Every item is new since the last brief, and nothing is ever shown twice — the worker records each item once it appears here. Selection is fixed rules over the night's pull (watchlist companies, your three sectors, Bay Area mentions, trusted publishers first); nothing is model-written, so it cannot invent a company or a role. The YC landscape only appears on days a number actually moved.</p>
     </div>`;
-  document.getElementById('pill-brief').textContent=brief.sections.length;
+  document.getElementById('pill-brief').textContent=nItems;
 }
+
+/* ============================================================
+   BAY AREA — roles, funding, watchlist news, events, watchlist
+   ============================================================ */
+
+const BAY_TABS=[
+  {id:'roles',  label:'Roles'},
+  {id:'funding',label:'Funding'},
+  {id:'news',   label:'Watchlist news'},
+  {id:'events', label:'Events'},
+  {id:'watch',  label:'Watchlist'},
+];
+
+async function loadBay(){
+  try{
+    const r=await fetch(`${INTEL_BASE}/api/bayarea`,{signal:AbortSignal.timeout(25000)});
+    if(!r.ok) throw new Error(r.status);
+    bay=await r.json();
+    try{ localStorage.setItem('sr_bay',JSON.stringify(bay)); }catch{}
+  }catch{
+    try{ bay=JSON.parse(localStorage.getItem('sr_bay')||'null'); }catch{}
+  }
+  renderBay();
+}
+
+function companyName(id){ return bay?.watchlist.find(w=>w.id===id)?.name||id; }
+const shortSector={geo:'EO/Geo',defense:'Defense',risk:'Risk'};
+
+function renderBay(){
+  const body=document.getElementById('bay-body');
+  if(!bay){ body.innerHTML=`<div class="err">Bay Area data is unavailable right now. It refreshes every night.</div>`; return; }
+  const newRoles=bay.jobs.filter(j=>j.isNew).length;
+  const coreRoles=bay.jobs.filter(j=>j.core).length;
+  const counts={roles:bay.jobs.length,funding:bay.funding.length,news:bay.mentions.length,events:bay.events.length,watch:bay.watchlist.length};
+  document.getElementById('pill-bay').textContent=bay.jobs.length;
+  document.getElementById('bay-summary').textContent=
+    `${bay.jobs.length} open GTM roles across ${bay.watchlist.length} watchlist companies — ${coreRoles} RevOps/ops, ${newRoles} new this week. ${bay.funding.length} funding stories and ${bay.mentions.length} watchlist mentions in the last 30 days.`;
+  document.getElementById('bay-stamp').textContent='Read '+new Date(bay.generatedAt).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  document.getElementById('bay-tabs').innerHTML=BAY_TABS.map(t=>
+    `<button class="subtab ${t.id===bayTab?'on':''}" data-bay="${t.id}">${escHtml(t.label)} <span class="pill">${counts[t.id]}</span></button>`).join('');
+
+  if(bayTab==='roles'){
+    let jobs=bay.jobs;
+    if(bayFilter.revops) jobs=jobs.filter(j=>j.core);
+    if(bayFilter.bayOnly) jobs=jobs.filter(j=>j.bay);
+    const starred=new Set(bay.watchlist.filter(w=>w.starred).map(w=>w.id));
+    jobs=[...jobs].sort((a,b)=>(b.isNew-a.isNew)||(b.core-a.core)||(starred.has(b.company_id)-starred.has(a.company_id))||(b.bay-a.bay)||a.company.localeCompare(b.company));
+    const noBoard=bay.watchlist.filter(w=>!w.ats);
+    body.innerHTML=`
+      <div class="chips">
+        <button class="chip ${bayFilter.revops?'on':''}" data-filter="revops" aria-pressed="${bayFilter.revops}">RevOps / ops only</button>
+        <button class="chip ${bayFilter.bayOnly?'on':''}" data-filter="bayOnly" aria-pressed="${bayFilter.bayOnly}">In the Bay Area (no remote)</button>
+      </div>
+      <p class="sec-note">GTM roles (RevOps, sales, BD, partnerships, customer success, solutions) at watchlist companies, in the Bay Area or remote in the US. Read from each company's public job board every night.</p>
+      <div class="blist">${jobs.map(j=>bitemHtml({kind:j.core?'revops':(j.bay?'gtm':'remote'),label:`${j.company} — ${j.title}`,url:j.url,
+        isNew:j.isNew,stat:j.bay?'Bay Area':'Remote US',detail:[j.location,j.dept].filter(Boolean).join(' · ')})).join('')||'<div class="empty">No roles match these filters.</div>'}</div>
+      ${noBoard.length?`<p class="sec-note" style="margin-top:1.2rem">No public job board to read for ${noBoard.map(w=>`<a href="${escHtml(w.careers||w.website||'#')}" target="_blank" rel="noopener">${escHtml(w.name)}</a>`).join(', ')} — check those by hand.</p>`:''}`;
+  }
+  else if(bayTab==='funding'){
+    body.innerHTML=`<p class="sec-note">Raises, acquisitions and listings in EO/geospatial, drones/defense and climate risk, last 30 days. Bay Area stories first.</p>
+      <div class="blist">${[...bay.funding].sort((a,b)=>(b.bay-a.bay)||(b.publishedAt-a.publishedAt)).map(a=>bitemHtml({kind:'funding',label:a.title,url:a.link,
+        stat:[a.bay?'Bay Area':'',a.sectors.map(s=>shortSector[s]).join(' + ')].filter(Boolean).join(' · '),
+        detail:[a.source,a.tier===2?'via search':'',relTime(a.publishedAt)].filter(Boolean).join(' · ')})).join('')||'<div class="empty">Nothing yet.</div>'}</div>`;
+  }
+  else if(bayTab==='news'){
+    body.innerHTML=`<p class="sec-note">Stories naming a watchlist company, last 30 days.</p>
+      <div class="blist">${bay.mentions.map(a=>bitemHtml({kind:'watch',label:a.title,url:a.link,stat:a.mentions.map(companyName).join(', '),
+        detail:[a.source,a.tier===2?'via search':'',relTime(a.publishedAt)].filter(Boolean).join(' · ')})).join('')||'<div class="empty">No mentions yet.</div>'}</div>`;
+  }
+  else if(bayTab==='events'){
+    const fmt=t=>new Date(t).toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZone:'America/Los_Angeles'});
+    body.innerHTML=`<p class="sec-note">Public Bay Area events on Luma and sector calendars whose title matches your sectors. Event titles are short, so this list is deliberately strict — expect a handful, not dozens.</p>
+      <div class="blist">${bay.events.map(e=>bitemHtml({kind:'event',label:e.title,url:e.url,stat:fmt(e.start_at),detail:[e.city,e.source].filter(Boolean).join(' · ')})).join('')||'<div class="empty">No matching events in the next two months.</div>'}</div>`;
+  }
+  else renderWatchlist(body);
+}
+
+/* ---------- watchlist editing ----------
+   Writes need the passphrase set on the worker (RADAR_KEY). It is
+   asked for once and kept in this browser only. */
+function radarKey(){ try{ return localStorage.getItem('sr_key')||''; }catch{ return ''; } }
+async function ensureKey(){
+  let k=radarKey();
+  if(k) return k;
+  k=(prompt('Passphrase for editing the watchlist (set on the worker as RADAR_KEY):')||'').trim();
+  if(!k) return '';
+  const r=await fetch(`${INTEL_BASE}/api/auth`,{headers:{'X-Radar-Key':k}}).catch(()=>null);
+  if(!r||!r.ok){ alert('That passphrase was not accepted.'); return ''; }
+  try{ localStorage.setItem('sr_key',k); }catch{}
+  return k;
+}
+async function watchWrite(method,body,query=''){
+  const k=await ensureKey(); if(!k) return null;
+  const r=await fetch(`${INTEL_BASE}/api/watchlist${query}`,{method,headers:{'Content-Type':'application/json','X-Radar-Key':k},body:body?JSON.stringify(body):undefined});
+  if(r.status===401){ try{ localStorage.removeItem('sr_key'); }catch{} alert('Passphrase rejected — try again.'); return null; }
+  return r.json();
+}
+
+const BOARD={greenhouse:s=>`https://job-boards.greenhouse.io/${s}`,lever:s=>`https://jobs.lever.co/${s}`,ashby:s=>`https://jobs.ashbyhq.com/${s}`,workable:s=>`https://apply.workable.com/${s}/`};
+const boardUrl=w=>w.careers||(w.ats&&BOARD[w.ats]?BOARD[w.ats](encodeURIComponent(w.slug)):'');
+
+function renderWatchlist(body){
+  const list=[...bay.watchlist].sort((a,b)=>(b.starred-a.starred)||a.name.localeCompare(b.name));
+  const sectorOpts=Object.entries(bay.sectors).map(([k,v])=>`<option value="${k}">${escHtml(v)}</option>`).join('');
+  body.innerHTML=`
+    <form class="wl-add" id="wl-form">
+      <h3>Add a company you find interesting</h3>
+      <div class="wl-form">
+        <label>Company name<input name="name" required maxlength="80" placeholder="e.g. Array Labs"></label>
+        <label>Website<input name="website" type="url" placeholder="https://…"></label>
+        <label>Careers page or job board link<input name="careers" type="url" placeholder="jobs.ashbyhq.com/… or company.com/careers"></label>
+        <label>Sector<select name="sector">${sectorOpts}</select></label>
+        <label>City<input name="city" maxlength="60" placeholder="San Francisco"></label>
+        <label class="full">Why it's interesting (optional)<input name="note" maxlength="280"></label>
+      </div>
+      <div class="wl-actions">
+        <button class="btn" type="submit">Add to watchlist</button>
+        <span class="wl-msg" id="wl-msg" role="status">Starred companies are yours; the radar reads their job board and watches the news for their name.</span>
+      </div>
+    </form>
+    <div class="wl-grid">${list.map(w=>`
+      <div class="wl-card ${w.starred?'starred':''}">
+        <div class="wl-top">
+          <div class="wl-name"><a href="${escHtml(w.website||'#')}" target="_blank" rel="noopener">${escHtml(w.name)}</a></div>
+          <button class="wbtn star ${w.starred?'on':''}" data-star="${escHtml(w.id)}" aria-pressed="${w.starred}" aria-label="${w.starred?'Unstar':'Star'} ${escHtml(w.name)}" title="${w.starred?'On my list':'Add to my list'}">${w.starred?'★':'☆'}</button>
+        </div>
+        <div class="wl-meta">${escHtml(shortSector[w.sector]||w.sector||'')} · ${escHtml(w.city||'')}${w.origin==='user'?' · added by you':''}</div>
+        ${w.note?`<div class="wl-note">${escHtml(w.note)}</div>`:''}
+        ${w.lastNews?`<div class="wl-news">Latest: <a href="${escHtml(w.lastNews.link)}" target="_blank" rel="noopener">${escHtml(w.lastNews.title)}</a></div>`:''}
+        <div class="wl-foot">
+          <span class="wl-roles">${w.ats?`${w.gtmRoles} GTM roles${w.open_roles!=null?` · ${w.open_roles} total`:''}`:'no public job board'}</span>
+          ${boardUrl(w)?`<a class="wbtn" href="${escHtml(boardUrl(w))}" target="_blank" rel="noopener">Careers →</a>`:''}
+          <button class="wbtn rm" data-remove="${escHtml(w.id)}">Remove</button>
+        </div>
+      </div>`).join('')}</div>`;
+}
+
+document.getElementById('view-bayarea').addEventListener('click',async e=>{
+  const t=e.target.closest('[data-bay]'); if(t){ bayTab=t.dataset.bay; renderBay(); return; }
+  const f=e.target.closest('[data-filter]'); if(f){ bayFilter[f.dataset.filter]=!bayFilter[f.dataset.filter]; renderBay(); return; }
+  const st=e.target.closest('[data-star]');
+  if(st){
+    const w=bay.watchlist.find(x=>x.id===st.dataset.star);
+    const r=await watchWrite('POST',{action:'star',id:w.id,starred:!w.starred});
+    if(r?.ok){ w.starred=!w.starred; renderBay(); }
+    return;
+  }
+  const rm=e.target.closest('[data-remove]');
+  if(rm){
+    const w=bay.watchlist.find(x=>x.id===rm.dataset.remove);
+    if(!confirm(`Remove ${w.name} from the watchlist? Its roles and mentions will stop being tracked.`)) return;
+    const r=await watchWrite('DELETE',null,`?id=${encodeURIComponent(w.id)}`);
+    if(r?.ok){ bay.watchlist=bay.watchlist.filter(x=>x.id!==w.id); bay.jobs=bay.jobs.filter(j=>j.company_id!==w.id); renderBay(); }
+  }
+});
+document.getElementById('view-bayarea').addEventListener('submit',async e=>{
+  if(e.target.id!=='wl-form') return;
+  e.preventDefault();
+  const fd=Object.fromEntries(new FormData(e.target).entries());
+  const msg=document.getElementById('wl-msg'), btn=e.target.querySelector('button[type=submit]');
+  btn.disabled=true; msg.className='wl-msg'; msg.textContent='Adding — looking for a job board…';
+  const r=await watchWrite('POST',{...fd,starred:true});
+  btn.disabled=false;
+  if(!r){ msg.textContent=''; return; }
+  if(r.error){ msg.className='wl-msg err'; msg.textContent=r.error; return; }
+  await loadBay();
+  bayTab='watch'; renderBay();
+  const m=document.getElementById('wl-msg');
+  m.textContent=r.ats
+    ? `Added. Found its ${r.ats} job board${r.roles?.gtm!=null?` — ${r.roles.gtm} GTM roles open now`:''}. New roles will appear in the brief.`
+    : 'Added. No public job board found, so only news is tracked — paste a Greenhouse, Lever, Ashby or Workable link to track roles.';
+});
 
 /* ---------- landscape ---------- */
 function renderLandscape(){
@@ -1008,8 +1098,8 @@ function setView(v){
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('on',b.dataset.view===v));
   document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on',s.id===`view-${v}`));
   location.hash=v;
-  // The feed is expensive, so it only scans once the user actually opens it.
   if(v==='feed'&&!allArticles.length&&!isLoading) loadFeeds();
+  if(v==='bayarea'&&!bay) loadBay();
   window.scrollTo({top:0,behavior:'instant'});
 }
 
@@ -1033,6 +1123,7 @@ document.getElementById('refresh').addEventListener('click',async()=>{
   btn.classList.add('spin');
   await loadIntel();
   if(activeView==='feed'||allArticles.length) await loadFeeds();
+  if(activeView==='bayarea'||bay) await loadBay();
   btn.classList.remove('spin');
   stamp();
 });
@@ -1043,7 +1134,7 @@ document.getElementById('refresh').addEventListener('click',async()=>{
   if(cached){ landscape=cached.l; brief=cached.b; renderBrief(); renderLandscape(); }
 
   const hash=(location.hash||'').replace('#','');
-  setView(['brief','landscape','feed'].includes(hash)?hash:'brief');
+  setView(['brief','bayarea','feed','landscape'].includes(hash)?hash:'brief');
 
   renderSubtabs();
   loadIntel();

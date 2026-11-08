@@ -3,7 +3,7 @@ main = "src/index.js"
 compatibility_date = "2026-05-01"
 
 [triggers]
-crons = ["15 9 * * *"]
+crons = ["*/5 9 * * *"]   # one stage every 5 min, 09:00–09:20 UTC — see src/index.js
 
 [[d1_databases]]
 binding       = "DB"
