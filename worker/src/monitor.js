@@ -525,3 +525,51 @@ export async function runMonitorStage(env, name, { only } = {}) {
     .bind(`monitor:${name}`, JSON.stringify(rec)).run();
   return rec;
 }
+
+/* ============================================================
+   Follow → Notion: following a company on the radar adds it to
+   the Job Database as a company row and registers its board, so
+   the next nightly run checks it. Unfollowing never deletes.
+   ============================================================ */
+
+const BOARD_HOME = {
+  greenhouse: s => `https://job-boards.greenhouse.io/${s}`,
+  lever:      s => `https://jobs.lever.co/${s}`,
+  ashby:      s => `https://jobs.ashbyhq.com/${s}`,
+  workable:   s => `https://apply.workable.com/${s}`,
+};
+
+/** Add a followed watchlist company to the Job Database.
+    Returns { notion: 'added' | 'exists' | 'off' | 'error', ... }. */
+export async function followToNotion(env, w) {
+  if (env.MONITOR_ENABLED === 'off' || !env.NOTION_TOKEN || !env.JOB_DS_ID) return { notion: 'off' };
+  const name = (w.name || '').replace(/ @ /g, ' ').trim();
+  if (!name) return { notion: 'error', error: 'no name' };
+  try {
+    // Already monitored? Same name, or the same job board.
+    const known = await env.DB.prepare(
+      `SELECT page_id FROM monitor_companies WHERE lower(name)=lower(?) OR (ats IS NOT NULL AND ats=? AND slug=?) LIMIT 1`
+    ).bind(name, w.ats || '', w.slug || '').first();
+    if (known) return { notion: 'exists' };
+    const budget = { left: 6 };
+    const hits = await queryAll(env, env.JOB_DS_ID, { property: 'Name', title: { equals: name } }, budget);
+    if (hits.some(r => !prop.formula(r.properties.Position))) return { notion: 'exists' };
+
+    const board = w.ats && w.slug && BOARD_HOME[w.ats] ? { ats: w.ats, slug: w.slug } : null;
+    const careers = w.careers || (board ? BOARD_HOME[board.ats](board.slug) : null) || w.website || null;
+    const status = board ? 'Watching' : careers ? 'Manual check' : 'No board found';
+    const note = `Added ${new Date().toISOString().slice(0, 10)} by following on Startup Radar. Board: ${board ? `${board.ats}/${board.slug}` : 'none detected'}.`;
+    const page = await notion(env, 'POST', '/pages', {
+      parent: { type: 'data_source_id', data_source_id: env.JOB_DS_ID },
+      properties: { Name: put.title(name), URL: put.url(careers), 'Monitor Status': put.select(status) },
+      children: textToBlocks(note),
+    }, budget);
+    await env.DB.prepare(
+      `INSERT INTO monitor_companies (page_id,name,careers,ats,slug,status,note,fails,notion_url,updated_at) VALUES (?,?,?,?,?,?,?,0,?,?)
+       ON CONFLICT(page_id) DO NOTHING`
+    ).bind(page.id, name, careers, board?.ats || null, board?.slug || null, status, 'added by radar follow', careers, Date.now()).run();
+    return { notion: 'added', status };
+  } catch (e) {
+    return { notion: 'error', error: e.message.slice(0, 160) };
+  }
+}
