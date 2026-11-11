@@ -21,7 +21,8 @@ import { buildBrief, briefToText, setMeta } from './brief.js';
 import { collectFeedsA, collectFeedsB, collectJobs, collectEvents, isGtmRole } from './collect.js';
 import { SEED, sniffAts, fetchJobs, mentionMatchers } from './watchlist.js';
 import { FEED_TABS, SECTORS, ROLE_CORE, classifyLocation } from './sources.js';
-import { monitorRoute, runMonitorStage } from './monitor.js';
+import { monitorRoute, runMonitorStage, followToNotion } from './monitor.js';
+import { runPrepareQueue, PREP_CRON } from './prepare.js';
 import { runIntel, watchView, companyView, dealsByArticle, backfillCompany, ensureIntelSchema, slugify } from './intel.js';
 
 const BATCH_ORDER = [
@@ -279,6 +280,10 @@ async function proxy(url) {
 
 export default {
   async scheduled(event, env, ctx) {
+    if (event.cron === PREP_CRON) {   // Prepare to Apply queue; runs on its own cron
+      ctx.waitUntil(runPrepareQueue(env).catch(e => console.error('prepare queue failed', e.message)));
+      return;
+    }
     const d = new Date(event.scheduledTime);
     if (d.getUTCHours() === INTEL_AT.hour && d.getUTCMinutes() === INTEL_AT.minute) {
       ctx.waitUntil(runStage(env, 'intel').then(r => { if (!r.ok) console.error('intel failed', r.error); }));
@@ -372,7 +377,7 @@ export default {
           if (r.error) return json(r, 400);
           await env.DB.prepare(`UPDATE suggestions SET status='followed', updated_at=? WHERE org_id=?`).bind(Date.now(), org.id).run();
           const w = (await loadWatchlist(env)).find(x => x.id === org.id);
-          if (w) r.news = await backfillCompany(env, w);
+          if (w) { r.jobList = await followToNotion(env, w); r.news = await backfillCompany(env, w); }
           return json(r);
         }
 
@@ -389,11 +394,17 @@ export default {
             const body = await req.json().catch(() => ({}));
             if (body.action === 'star') {
               await env.DB.prepare('UPDATE watchlist SET starred=? WHERE id=?').bind(body.starred ? 1 : 0, body.id).run();
-              return json({ ok: true });
+              let jobList = null;
+              if (body.starred) {
+                const w = (await loadWatchlist(env)).find(x => x.id === body.id);
+                if (w) jobList = await followToNotion(env, w);
+              }
+              return json({ ok: true, jobList });
             }
             const r = await upsertWatch(env, body);
             if (!r.error) {
               const w = (await loadWatchlist(env)).find(x => x.id === r.id);
+              if (w?.starred) r.jobList = await followToNotion(env, w);
               if (w) r.news = await backfillCompany(env, w).catch(() => 0);
             }
             return json(r, r.error ? 400 : 200);
