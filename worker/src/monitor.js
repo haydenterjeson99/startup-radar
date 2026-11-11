@@ -20,7 +20,7 @@
    in either HOLD status.
    ============================================================ */
 
-import { notion, queryAll, prop, put, textToBlocks } from './notion.js';
+import { notion, queryAll, prop, put, textToBlocks, pageText } from './notion.js';
 import { fetchJobs, sniffAts, detectAts, htmlToText, annual } from './watchlist.js';
 import { ROLE_CORE, ROLE_EXCLUDE, classifyLocation } from './sources.js';
 
@@ -178,6 +178,12 @@ export async function stageSync(env) {
     // Hayden moved a held row to a watch status: treat it as new.
     const released = k && HOLD.has(k.status);
     if (released && k.status === 'Suggested') { approvals.push(c); report.approved.push(c.name); }
+    // A sourcing row approved before any sync saw it as Suggested: its
+    // page body says so. One read, only for rows the monitor never saw.
+    else if (!k && budget.left >= 6) {
+      const body = await pageText(env, c.pageId, budget).catch(() => '');
+      if (/by company sourcing/i.test(body)) { approvals.push(c); report.approved.push(c.name); }
+    }
     const edited = k && c.url && c.url !== k.notion_url && c.url !== k.careers;
     if (k && !edited && !released) continue;
     if (!c.url) {
