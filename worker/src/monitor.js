@@ -10,7 +10,7 @@
      sync    read the Job Database: new company rows, URL edits,
              clipped role rows, Fit and deleted rows; approved
              suggestions; Radar watchlist companies missing here
-     checkA/B/C  read ~40 job boards each; queue Notion writes
+     checkA–E  read up to 40 job boards each (200 in all); queue Notion writes
      write   drain the Notion write queue (carries over nightly)
 
    Company sourcing: the "Company sourcing" cloud routine adds
@@ -271,15 +271,17 @@ async function addToRadar(env, rows, now) {
    ============================================================ */
 
 /** Boards to read tonight, in a stable order, split into slices of
-    PER_CHECK. Slice 2 also carries boards that only clipped rows
-    point at (companies not in the database). */
+    PER_CHECK. Clipped-only boards (companies not in the database)
+    ride at the end of the list. */
 async function boardsFor(env, slice) {
   const cos = await all(env, `SELECT * FROM monitor_companies WHERE ats IS NOT NULL AND slug IS NOT NULL
                               AND status IN ('Watching','Match found') ORDER BY name`);
   const extra = (await all(env, `SELECT DISTINCT board FROM monitor_roles WHERE clipped=1 AND company_id IS NULL AND status='Open' AND board IS NOT NULL`))
     .map(r => ({ page_id: null, name: null, ats: r.board.split(':')[0], slug: r.board.split(':').slice(1).join(':'), clippedOnly: true }));
   const list = [...cos, ...extra];
-  return list.slice(slice * PER_CHECK, (slice + 1) * PER_CHECK);
+  const boards = list.slice(slice * PER_CHECK, (slice + 1) * PER_CHECK);
+  boards.total = list.length;
+  return boards;
 }
 
 export async function checkBoards(env, boards, { dryRun = false } = {}) {
@@ -373,8 +375,9 @@ export async function checkBoards(env, boards, { dryRun = false } = {}) {
 export async function stageCheck(env, slice) {
   const boards = await boardsFor(env, slice);
   const r = await checkBoards(env, boards);
-  // After the last slice, queue each company's nightly summary.
-  if (slice === 2) await queueCompanyRollups(env);
+  // After the last slice that has boards, queue each company's nightly summary.
+  const total = boards.total;
+  if ((slice + 1) * PER_CHECK >= total && (slice * PER_CHECK < total || slice === 0)) await queueCompanyRollups(env);
   return { slice, boards: boards.length, checked: r.checked, newRoles: r.newRoles, closed: r.closed, matches: r.matches.length, failed: r.failed };
 }
 
@@ -565,6 +568,8 @@ export const MONITOR_STAGES = {
   monitorCheckA: env => stageCheck(env, 0),
   monitorCheckB: env => stageCheck(env, 1),
   monitorCheckC: env => stageCheck(env, 2),
+  monitorCheckD: env => stageCheck(env, 3),
+  monitorCheckE: env => stageCheck(env, 4),
   monitorWrite:  env => stageWrite(env),
 };
 

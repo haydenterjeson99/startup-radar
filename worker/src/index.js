@@ -150,9 +150,37 @@ const INTEL_AT = { hour: 10, minute: 35 };
    plus the first half of hour 10 for Notion writes. Kept out of
    STAGES so /api/refresh and /api/sources never touch it. */
 const MONITOR_BY_MINUTE = {
-  9:  { 25: 'monitorSync', 30: 'monitorCheckA', 35: 'monitorCheckB', 40: 'monitorCheckC', 45: 'monitorWrite', 50: 'monitorWrite', 55: 'monitorWrite' },
+  9:  { 25: 'monitorSync', 30: 'monitorCheckA', 35: 'monitorCheckB', 40: 'monitorCheckC', 45: 'monitorCheckD', 50: 'monitorCheckE', 55: 'monitorWrite' },
   10: { 0: 'monitorWrite', 5: 'monitorWrite', 10: 'monitorWrite', 15: 'monitorWrite', 20: 'monitorWrite', 25: 'monitorWrite', 30: 'monitorWrite' },
 };
+
+/* Manual monitor run: the whole nightly pipeline on demand. Set it off
+   with D1 (no passphrase needed):
+     INSERT INTO meta (key,value) VALUES ('monitor:manual','{"step":0}')
+       ON CONFLICT(key) DO UPDATE SET value=excluded.value;
+   Each two-minute firing then runs the next stage: sync, checkA–E, and
+   write until the Notion queue is empty (at most 25 writes). Progress
+   and per-stage results stay in meta 'monitor:manual'. */
+const MANUAL_SEQ = ['monitorSync', 'monitorCheckA', 'monitorCheckB', 'monitorCheckC', 'monitorCheckD', 'monitorCheckE'];
+async function manualMonitorStep(env) {
+  const m = await getMeta(env, 'monitor:manual');
+  if (!m || m.done || env.MONITOR_ENABLED !== 'all') return false;
+  const step = m.step || 0;
+  const writes = Math.max(0, step - MANUAL_SEQ.length);
+  if (step >= MANUAL_SEQ.length) {
+    const q = await env.DB.prepare('SELECT COUNT(*) n FROM monitor_queue WHERE tries < 5').first();
+    if (!q?.n || writes >= 25) { await setMeta(env, 'monitor:manual', { ...m, done: true, finishedAt: Date.now(), queueLeft: q?.n || 0 }); return false; }
+  }
+  const name = MANUAL_SEQ[step] || 'monitorWrite';
+  // Record the step before running it, so an overlapping firing moves on.
+  await setMeta(env, 'monitor:manual', { ...m, step: step + 1, startedAt: m.startedAt || Date.now(), running: name });
+  const r = await runMonitorStage(env, name).catch(e => ({ ok: false, error: e.message }));
+  const cur = await getMeta(env, 'monitor:manual') || {};
+  const summary = { stage: name, ok: r.ok !== false, error: r.error, boards: r.boards, newRoles: r.newRoles, closed: r.closed,
+                    matches: r.matches, written: r.written, linked: r.linked?.length, held: r.held, approved: r.approved };
+  await setMeta(env, 'monitor:manual', { ...cur, running: null, log: [...(cur.log || []), summary] });
+  return true;
+}
 
 /* ---------- auth for writes ---------- */
 
@@ -281,7 +309,10 @@ async function proxy(url) {
 export default {
   async scheduled(event, env, ctx) {
     if (event.cron === PREP_CRON) {   // Prepare to Apply queue; runs on its own cron
-      ctx.waitUntil(runPrepareQueue(env).catch(e => console.error('prepare queue failed', e.message)));
+      // A manual monitor run, when one is requested, takes this firing
+      // instead (each invocation has its own 50-request budget).
+      ctx.waitUntil(manualMonitorStep(env).then(ran => ran ? null : runPrepareQueue(env))
+        .catch(e => console.error('prepare queue / manual monitor failed', e.message)));
       return;
     }
     const d = new Date(event.scheduledTime);
