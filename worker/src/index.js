@@ -404,7 +404,7 @@ export default {
             const r = await upsertWatch(env, body);
             if (!r.error) {
               const w = (await loadWatchlist(env)).find(x => x.id === r.id);
-              if (w?.starred) r.jobList = await followToNotion(env, w);
+              if (w) r.jobList = await followToNotion(env, w);   // every Radar company is also in the Job Database
               if (w) r.news = await backfillCompany(env, w).catch(() => 0);
             }
             return json(r, r.error ? 400 : 200);

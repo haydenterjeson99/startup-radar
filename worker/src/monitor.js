@@ -8,9 +8,16 @@
 
    Nightly stages (see index.js):
      sync    read the Job Database: new company rows, URL edits,
-             clipped role rows, Fit and deleted rows
+             clipped role rows, Fit and deleted rows; approved
+             suggestions; Radar watchlist companies missing here
      checkA/B/C  read ~40 job boards each; queue Notion writes
      write   drain the Notion write queue (carries over nightly)
+
+   Company sourcing: the "Company sourcing" cloud routine adds
+   company rows with Monitor Status = Suggested. Hayden approves one
+   by setting it to Watching, or passes with Not interested. The
+   monitor never reads boards for, or rewrites the status of, a row
+   in either HOLD status.
    ============================================================ */
 
 import { notion, queryAll, prop, put, textToBlocks } from './notion.js';
@@ -20,6 +27,10 @@ import { ROLE_CORE, ROLE_EXCLUDE, classifyLocation } from './sources.js';
 const DAY = 24 * 3600 * 1000;
 const PER_CHECK = 40;          // boards per check stage (free plan: 50 requests)
 const BUDGET = 45;             // outbound requests a stage allows itself
+
+/* Monitor Status values only Hayden (or the sourcing routine) sets. */
+export const HOLD = new Set(['Suggested', 'Not interested']);
+const slug = s => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48);
 
 /* ============================================================
    Filters
@@ -145,17 +156,33 @@ export async function stageSync(env) {
   const roles = rows.filter(r => !isCompanyRow(r));
   const known = Object.fromEntries((await all(env, 'SELECT * FROM monitor_companies')).map(c => [c.page_id, c]));
   const stmts = [];
-  const report = { companies: companies.length, roles: roles.length, added: [], resniffed: [], clipped: 0, gone: 0 };
+  const approvals = [];
+  const report = { companies: companies.length, roles: roles.length, added: [], resniffed: [], held: 0, approved: [], linked: [], linkPending: 0, clipped: 0, gone: 0 };
 
   // Companies: new rows and URL edits. A URL we wrote ourselves is
   // remembered in notion_url, so only a hand edit triggers a re-sniff.
   for (const c of companies) {
     const k = known[c.pageId];
     if (k && k.name !== c.name) stmts.push(env.DB.prepare('UPDATE monitor_companies SET name=? WHERE page_id=?').bind(c.name, c.pageId));
+
+    // Suggested / Not interested: remember the status, read no board.
+    if (HOLD.has(c.monitorStatus)) {
+      if (!k) stmts.push(env.DB.prepare(`INSERT INTO monitor_companies (page_id,name,careers,status,note,fails,notion_url,updated_at) VALUES (?,?,?,?,?,0,?,?)`)
+        .bind(c.pageId, c.name, c.url, c.monitorStatus, 'held: ' + c.monitorStatus, c.url, now));
+      else if (k.status !== c.monitorStatus) stmts.push(env.DB.prepare('UPDATE monitor_companies SET status=?, note=? WHERE page_id=?').bind(c.monitorStatus, 'held: ' + c.monitorStatus, c.pageId));
+      if (c.monitorStatus === 'Not interested')        // keep the Radar from suggesting it again
+        stmts.push(env.DB.prepare(`UPDATE suggestions SET status='dismissed', updated_at=? WHERE org_id=? AND status != 'followed'`).bind(now, slug(c.name)));
+      report.held++;
+      continue;
+    }
+    // Hayden moved a held row to a watch status: treat it as new.
+    const released = k && HOLD.has(k.status);
+    if (released && k.status === 'Suggested') { approvals.push(c); report.approved.push(c.name); }
     const edited = k && c.url && c.url !== k.notion_url && c.url !== k.careers;
-    if (k && !edited) continue;
+    if (k && !edited && !released) continue;
     if (!c.url) {
       if (!k) { stmts.push(env.DB.prepare(`INSERT INTO monitor_companies (page_id,name,status,note,updated_at) VALUES (?,?,NULL,'no careers URL yet',?)`).bind(c.pageId, c.name, now)); report.added.push(`${c.name} (no URL)`); }
+      else if (released) stmts.push(env.DB.prepare(`UPDATE monitor_companies SET status=NULL, note='no careers URL yet' WHERE page_id=?`).bind(c.pageId));
       continue;
     }
     if (budget.left < 4) break;                       // finish tomorrow
@@ -199,7 +226,44 @@ export async function stageSync(env) {
   stmts.push(env.DB.prepare(`UPDATE monitor_roles SET company_id = (SELECT page_id FROM monitor_companies c WHERE c.ats || ':' || c.slug = monitor_roles.board)
                              WHERE clipped = 1 AND company_id IS NULL AND board IS NOT NULL`));
   await batch(env, stmts);
+
+  // Approved suggestions join the Radar watchlist, so their news and
+  // funding show up on the site and in the brief.
+  if (approvals.length) await addToRadar(env, approvals, now);
+
+  // Every Radar watchlist company is also a company row in the Job
+  // Database. Missing ones are added here, as many as the budget allows;
+  // the rest wait for the next night.
+  const names = new Set(companies.map(c => c.name.toLowerCase()));
+  const boards = new Set(Object.values(known).filter(k => k.ats && k.slug).map(k => `${k.ats}:${k.slug}`));
+  for (const w of await all(env, 'SELECT * FROM watchlist WHERE removed = 0 ORDER BY added_at, name')) {
+    if (names.has(w.name.toLowerCase()) || (w.ats && boards.has(`${w.ats}:${w.slug}`))) continue;
+    if (budget.left < 4) { report.linkPending++; continue; }
+    const r = await addCompanyRow(env, w, `Added ${new Date(now).toISOString().slice(0, 10)} from the Startup Radar watchlist.`, budget).catch(e => ({ notion: 'error', error: e.message.slice(0, 120) }));
+    report.linked.push(`${w.name}: ${r.status || r.error || r.notion}`);
+    names.add(w.name.toLowerCase());
+  }
   return report;
+}
+
+/* Approved suggestions → Radar watchlist (starred, origin 'sourcing').
+   Short one-word names (Mill, Quilt) only match news that also uses
+   sector vocabulary, so ordinary-word headlines don't attach to them. */
+async function addToRadar(env, rows, now) {
+  const stmts = [];
+  for (const c of rows) {
+    const m = await env.DB.prepare('SELECT careers, ats, slug FROM monitor_companies WHERE page_id=?').bind(c.pageId).first();
+    const id = slug(c.name);
+    const vague = /^[a-z]{2,6}$/i.test(c.name.trim());
+    stmts.push(env.DB.prepare(
+      `INSERT INTO watchlist (id,name,sector,city,website,careers,ats,slug,aliases,needs_context,note,starred,origin,removed,added_at)
+       VALUES (?,?,'risk','',NULL,?,?,?,?,?,'Approved from company sourcing',1,'sourcing',0,?)
+       ON CONFLICT(id) DO UPDATE SET removed=0, starred=1, careers=COALESCE(watchlist.careers, excluded.careers),
+         ats=COALESCE(watchlist.ats, excluded.ats), slug=COALESCE(watchlist.slug, excluded.slug)`
+    ).bind(id, c.name, m?.careers || c.url, m?.ats || null, m?.slug || null, JSON.stringify([c.name]), vague ? 1 : 0, now));
+    stmts.push(env.DB.prepare(`UPDATE suggestions SET status='followed', updated_at=? WHERE org_id=?`).bind(now, id));
+  }
+  await batch(env, stmts);
 }
 
 /* ============================================================
@@ -317,7 +381,8 @@ export async function stageCheck(env, slice) {
 /** Last Checked, Fit Roles Open, Latest Match, New Role Date and
     Monitor Status for every company with a board, from D1. */
 async function queueCompanyRollups(env, onlyIds = null) {
-  const cos = (await all(env, `SELECT * FROM monitor_companies WHERE ats IS NOT NULL`)).filter(c => !onlyIds || onlyIds.includes(c.page_id));
+  const cos = (await all(env, `SELECT * FROM monitor_companies WHERE ats IS NOT NULL`))
+    .filter(c => !HOLD.has(c.status) && (!onlyIds || onlyIds.includes(c.page_id)));
   const roles = await all(env, `SELECT company_id, title, fit, first_seen, status, gone FROM monitor_roles WHERE company_id IS NOT NULL`);
   const stmts = [];
   for (const c of cos) {
@@ -539,37 +604,56 @@ const BOARD_HOME = {
   workable:   s => `https://apply.workable.com/${s}`,
 };
 
-/** Add a followed watchlist company to the Job Database.
-    Returns { notion: 'added' | 'exists' | 'off' | 'error', ... }. */
+/** Add a followed watchlist company to the Job Database. Following a
+    company that sits there as Suggested (or Not interested) approves
+    it: the row is set to Watching and the next sync starts the board.
+    Returns { notion: 'added' | 'approved' | 'exists' | 'off' | 'error', ... }. */
 export async function followToNotion(env, w) {
   if (env.MONITOR_ENABLED === 'off' || !env.NOTION_TOKEN || !env.JOB_DS_ID) return { notion: 'off' };
   const name = (w.name || '').replace(/ @ /g, ' ').trim();
   if (!name) return { notion: 'error', error: 'no name' };
   try {
+    const budget = { left: 8 };
+    const approve = async pageId => {
+      await notion(env, 'PATCH', `/pages/${pageId}`, { properties: { 'Monitor Status': put.select('Watching') } }, budget);
+      return { notion: 'approved', status: 'Watching' };
+    };
     // Already monitored? Same name, or the same job board.
     const known = await env.DB.prepare(
-      `SELECT page_id FROM monitor_companies WHERE lower(name)=lower(?) OR (ats IS NOT NULL AND ats=? AND slug=?) LIMIT 1`
+      `SELECT page_id, status FROM monitor_companies WHERE lower(name)=lower(?) OR (ats IS NOT NULL AND ats=? AND slug=?) LIMIT 1`
     ).bind(name, w.ats || '', w.slug || '').first();
-    if (known) return { notion: 'exists' };
-    const budget = { left: 6 };
-    const hits = await queryAll(env, env.JOB_DS_ID, { property: 'Name', title: { equals: name } }, budget);
-    if (hits.some(r => !prop.formula(r.properties.Position))) return { notion: 'exists' };
-
-    const board = w.ats && w.slug && BOARD_HOME[w.ats] ? { ats: w.ats, slug: w.slug } : null;
-    const careers = w.careers || (board ? BOARD_HOME[board.ats](board.slug) : null) || w.website || null;
-    const status = board ? 'Watching' : careers ? 'Manual check' : 'No board found';
-    const note = `Added ${new Date().toISOString().slice(0, 10)} by following on Startup Radar. Board: ${board ? `${board.ats}/${board.slug}` : 'none detected'}.`;
-    const page = await notion(env, 'POST', '/pages', {
-      parent: { type: 'data_source_id', data_source_id: env.JOB_DS_ID },
-      properties: { Name: put.title(name), URL: put.url(careers), 'Monitor Status': put.select(status) },
-      children: textToBlocks(note),
-    }, budget);
-    await env.DB.prepare(
-      `INSERT INTO monitor_companies (page_id,name,careers,ats,slug,status,note,fails,notion_url,updated_at) VALUES (?,?,?,?,?,?,?,0,?,?)
-       ON CONFLICT(page_id) DO NOTHING`
-    ).bind(page.id, name, careers, board?.ats || null, board?.slug || null, status, 'added by radar follow', careers, Date.now()).run();
-    return { notion: 'added', status };
+    if (known) return HOLD.has(known.status) ? approve(known.page_id) : { notion: 'exists' };
+    const hits = (await queryAll(env, env.JOB_DS_ID, { property: 'Name', title: { equals: name } }, budget))
+      .filter(r => !prop.formula(r.properties.Position));
+    if (hits.length) return HOLD.has(prop.select(hits[0].properties['Monitor Status'])) ? approve(hits[0].id) : { notion: 'exists' };
+    return await addCompanyRow(env, w, `Added ${new Date().toISOString().slice(0, 10)} by following on Startup Radar.`, budget);
   } catch (e) {
     return { notion: 'error', error: e.message.slice(0, 160) };
   }
+}
+
+/** Create the company row and register its board. The caller has
+    already checked it isn't in the Job Database. A watchlist entry
+    with no known board gets its careers page sniffed first. */
+async function addCompanyRow(env, w, note, budget) {
+  const name = (w.name || '').replace(/ @ /g, ' ').trim();
+  let board = w.ats && w.slug && BOARD_HOME[w.ats] ? { ats: w.ats, slug: w.slug } : null;
+  const site = w.careers || (w.website ? w.website.replace(/\/$/, '') + '/careers' : null);
+  if (!board && site && budget.left >= 4) {
+    budget.left -= 2;
+    const d = await sniffAts(site).catch(() => null);
+    if (d && BOARD_HOME[d.ats]) board = { ats: d.ats, slug: d.slug };
+  }
+  const careers = w.careers || (board ? BOARD_HOME[board.ats](board.slug) : null) || w.website || null;
+  const status = board ? 'Watching' : careers ? 'Manual check' : 'No board found';
+  const page = await notion(env, 'POST', '/pages', {
+    parent: { type: 'data_source_id', data_source_id: env.JOB_DS_ID },
+    properties: { Name: put.title(name), URL: put.url(careers), 'Monitor Status': put.select(status) },
+    children: textToBlocks(`${note} Board: ${board ? `${board.ats}/${board.slug}` : 'none detected'}.`),
+  }, budget);
+  await env.DB.prepare(
+    `INSERT INTO monitor_companies (page_id,name,careers,ats,slug,status,note,fails,notion_url,updated_at) VALUES (?,?,?,?,?,?,?,0,?,?)
+     ON CONFLICT(page_id) DO NOTHING`
+  ).bind(page.id, name, careers, board?.ats || null, board?.slug || null, status, 'added from radar watchlist', careers, Date.now()).run();
+  return { notion: 'added', status };
 }

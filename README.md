@@ -121,6 +121,20 @@ matching roles to it. It shares the worker and the board readers
   fails 3 nights running is switched to a manual check.
 - A separate scheduled Claude task scores fit in Notion; the worker never
   writes those fields.
+- **One company list.** Every Radar watchlist company is also a company row
+  in the Job Database: adding one on the site creates the row, and the
+  nightly sync adds any that are missing (as many as its request budget
+  allows, the rest the next night).
+- **Company sourcing.** The "Company sourcing" cloud routine (prompt in the
+  private `job-search` repo, `routines/company-sourcing.md`) reads
+  `/api/watch` suggestions, `/api/bayarea` funding and the web, and adds
+  candidates to the Job Database with Monitor Status = Suggested. Hayden
+  sets Watching (yes) or Not interested (no). The monitor never reads a
+  board for, or rewrites the status of, a Suggested or Not interested row.
+  On the next sync an approved row has its board detected and joins the
+  Radar watchlist (starred, origin `sourcing`); Not interested also
+  dismisses the Radar's own suggestion for that company. Following a
+  company on the site approves its Suggested row too.
 
 Secrets: `NOTION_TOKEN` (Notion connection) and `JOB_DS_ID` (data source).
 `MONITOR_ENABLED` in `wrangler.toml` is `all` or `off`.

@@ -7,5 +7,6 @@ Startup and job-search intelligence (Bay Area; EO/geospatial, drones/defense, cl
 - Key modules: `collect.js`/`sources.js` (feeds), `yc.js`/`analyze.js` (landscape), `brief.js` (daily brief), `monitor.js`/`notion.js` (private job monitor over the Notion Job Database), `prepare.js` (Prepare to Apply → fires a Claude Code routine), `intel.js` (persistent intel store), `watchlist.js`.
 - Deploy worker: `cd worker && npx wrangler deploy` (wrangler is logged in). Remote D1: `npx wrangler d1 execute startup-intel --remote --command "…"`.
 - Secrets: `wrangler secret put` (NOTION_TOKEN, ROUTINE_ID, ROUTINE_TOKEN, …) and `worker/.dev.vars` — never in git. `monitor-private/` is gitignored.
+- Company sourcing: cloud routine "Company sourcing" (prompt `job-search/routines/company-sourcing.md`) adds Suggested rows to the Job Database; `monitor.js` HOLD statuses, approvals and the watchlist → Job Database link.
 - Related: skill `~/.claude/skills/add-job-company`, scheduled task `startup-radar-morning-brief`, `morning-brief-prompt.md`.
 - Branches: `wip/prepare-to-apply` (snapshot of in-progress work), `archive/desktop-draft-2026-08` (old draft copy, reference only).
