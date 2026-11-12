@@ -30,7 +30,7 @@ index.html ── GitHub Pages, no build step
                           │     09:20 yc         YC directory → landscape; brief on weekdays
                           ├── cron "0-30/5 10 * * *" + free minutes after 09:20 — private job monitor:
                           │     09:25 sync       read the Notion job database
-                          │     09:30–09:40      three board checks, ~40 boards each
+                          │     09:30–09:50      five board checks, up to 40 boards each (200 in all)
                           │     09:45–10:30      Notion write queue (carries over nightly)
                           └── D1: startup-intel
 ```
@@ -121,6 +121,12 @@ matching roles to it. It shares the worker and the board readers
   fails 3 nights running is switched to a manual check.
 - A separate scheduled Claude task scores fit in Notion; the worker never
   writes those fields.
+- **Manual run.** To run the whole nightly pipeline now, set a D1 flag:
+  `npx wrangler d1 execute startup-intel --remote --command "INSERT INTO meta (key,value) VALUES ('monitor:manual','{\"step\":0}') ON CONFLICT(key) DO UPDATE SET value=excluded.value"`.
+  The two-minute cron then runs sync, checkA-E and the Notion writes, one
+  stage per firing (about 15 minutes in all; Prepare to Apply waits for
+  those firings). Progress is in meta `monitor:manual`. Run "Job fit
+  scoring" afterwards to score the new rows.
 - **One company list.** Every Radar watchlist company is also a company row
   in the Job Database: adding one on the site creates the row, and the
   nightly sync adds any that are missing (as many as its request budget
