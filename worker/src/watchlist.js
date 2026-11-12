@@ -97,7 +97,7 @@ export function detectAts(url) {
   if (!url) return null;
   const m = [
     [/(?:boards|job-boards)(?:-api)?\.greenhouse\.io\/(?:v1\/boards\/|embed\/job_board(?:\/js)?\?for=)?([A-Za-z0-9_-]+)/, 'greenhouse'],
-    [/jobs\.lever\.co\/([A-Za-z0-9_-]+)/,           'lever'],
+    [/jobs\.lever\.co\/([A-Za-z0-9_.-]+?)(?=[/?#"'\\\s]|$)/, 'lever'],
     [/jobs\.ashbyhq\.com\/([A-Za-z0-9_.%-]+)/,      'ashby'],
     [/apply\.workable\.com\/([A-Za-z0-9_-]+)/,      'workable'],
     [/jobs\.gem\.com\/([A-Za-z0-9_-]+)/,            'gem'],
