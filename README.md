@@ -30,7 +30,8 @@ index.html ── GitHub Pages, no build step
                           │     09:20 yc         YC directory → landscape; brief on weekdays
                           ├── cron "0-30/5 10 * * *" + free minutes after 09:20 — private job monitor:
                           │     09:25 sync       read the Notion job database
-                          │     09:30–09:50      five board checks, up to 40 boards each (200 in all)
+                          │     09:30–09:45      four board checks, up to 40 one-request boards each
+                          │     09:50            heavy boards: Workday, Gem, Rippling, Dover, Comeet (up to 12)
                           │     09:45–10:30      Notion write queue (carries over nightly)
                           └── D1: startup-intel
 ```
@@ -107,8 +108,12 @@ matching roles to it. It shares the worker and the board readers
   brief, news matching, `/api/sources` and `/api/refresh` never see it. The
   company list and Notion IDs are never in this repo.
 - **Companies** come from the Notion database. A new company row with a
-  careers URL has its board (Greenhouse, Lever, Ashby, Workable) detected on
-  the next run; other boards are marked for a manual check.
+  careers URL has its board (Greenhouse, Lever, Ashby, Workable, Gem,
+  Rippling, Workday) detected on the next run. Dover and Comeet boards are
+  registered by hand in `monitor_companies` (slug `<name>|<page id>` and
+  `<company uid>|<token>`). Other pages (iCIMS, custom) are marked Manual
+  check and read daily by the "Careers page check" cloud routine (prompt in
+  `job-search/routines/careers-page-check.md`), which adds their roles.
 - **Filters.** Title: `ROLE_CORE` plus a few strategy/systems titles, minus
   `ROLE_EXCLUDE` and engineering/product roles (GTM engineer titles kept).
   Location: Bay Area or remote US, plus one other metro at manager level.

@@ -96,15 +96,20 @@ export const SEED = [
 export function detectAts(url) {
   if (!url) return null;
   const m = [
-    [/(?:boards|job-boards)(?:-api)?\.greenhouse\.io\/(?:v1\/boards\/|embed\/job_board\?for=)?([A-Za-z0-9_-]+)/, 'greenhouse'],
+    [/(?:boards|job-boards)(?:-api)?\.greenhouse\.io\/(?:v1\/boards\/|embed\/job_board(?:\/js)?\?for=)?([A-Za-z0-9_-]+)/, 'greenhouse'],
     [/jobs\.lever\.co\/([A-Za-z0-9_-]+)/,           'lever'],
     [/jobs\.ashbyhq\.com\/([A-Za-z0-9_.%-]+)/,      'ashby'],
     [/apply\.workable\.com\/([A-Za-z0-9_-]+)/,      'workable'],
+    [/jobs\.gem\.com\/([A-Za-z0-9_-]+)/,            'gem'],
+    [/ats\.rippling\.com\/(?!api\/)([A-Za-z0-9_-]+)/, 'rippling'],
   ];
   for (const [re, ats] of m) {
     const hit = url.match(re);
     if (hit && hit[1] !== 'embed') return { ats, slug: decodeURIComponent(hit[1]) };
   }
+  // Workday: https://<tenant>.<wdN>.myworkdayjobs.com/[en-US/]<site>
+  const wd = url.match(/https?:\/\/([a-z0-9-]+\.wd\d+)\.myworkdayjobs\.com\/(?:[a-z]{2}-[A-Z]{2}\/)?([A-Za-z0-9_-]+)/);
+  if (wd && !/^(login|wday)$/i.test(wd[2])) return { ats: 'workday', slug: `${wd[1]}|${wd[2]}` };
   return null;
 }
 
@@ -116,7 +121,7 @@ export async function sniffAts(pageUrl) {
     const res = await fetch(pageUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; startup-radar/2.0)' }, redirect: 'follow' });
     if (!res.ok) return null;
     const html = await res.text();
-    const links = html.match(/https?:\/\/(?:boards|job-boards|boards-api)\.greenhouse\.io\/[^"'\s<>]+|https?:\/\/jobs\.lever\.co\/[^"'\s<>]+|https?:\/\/jobs\.ashbyhq\.com\/[^"'\s<>]+|https?:\/\/apply\.workable\.com\/[^"'\s<>]+/g) || [];
+    const links = html.match(/https?:\/\/(?:boards|job-boards|boards-api)\.greenhouse\.io\/[^"'\s<>]+|https?:\/\/jobs\.lever\.co\/[^"'\s<>]+|https?:\/\/jobs\.ashbyhq\.com\/[^"'\s<>]+|https?:\/\/apply\.workable\.com\/[^"'\s<>]+|https?:\/\/jobs\.gem\.com\/[^"'\s<>]+|https?:\/\/ats\.rippling\.com\/[^"'\s<>]+|https?:\/\/[a-z0-9-]+\.wd\d+\.myworkdayjobs\.com\/[^"'\s<>]+/g) || [];
     for (const l of links) { const d = detectAts(l); if (d) return d; }
   } catch { /* fall through */ }
   return null;
@@ -128,7 +133,7 @@ const UA = { 'User-Agent': 'Mozilla/5.0 (compatible; startup-radar/2.0)' };
     With { details: true } (used only by the private job monitor) each
     posting also carries `text` (plain posting text) and, where the board
     gives structured pay, `comp` {min,max,basis} — at no extra requests. */
-export async function fetchJobs(ats, slug, { details = false } = {}) {
+export async function fetchJobs(ats, slug, { details = false, keep = null } = {}) {
   if (ats === 'greenhouse') {
     const r = await fetch(`https://boards-api.greenhouse.io/v1/boards/${slug}/jobs${details ? '?content=true' : ''}`, { headers: UA });
     if (!r.ok) throw new Error(`greenhouse ${slug} ${r.status}`);
@@ -176,7 +181,132 @@ export async function fetchJobs(ats, slug, { details = false } = {}) {
       remote: !!p.telecommuting, postedAt: Date.parse(p.published_on || p.created_at) || 0,
     }));
   }
+  if (ats === 'gem') {
+    const r = await fetch(`https://api.gem.com/job_board/v0/${slug}/job_posts/`, { headers: UA });
+    if (!r.ok) throw new Error(`gem ${slug} ${r.status}`);
+    const j = await r.json();
+    return (Array.isArray(j) ? j : []).map(p => ({
+      id: `gm:${slug}:${p.id}`, title: p.title,
+      location: [p.location?.name, ...(p.offices || []).map(o => o.location?.name)].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join('; '),
+      dept: p.departments?.[0]?.name || '', url: p.absolute_url,
+      remote: p.location_type === 'remote', postedAt: Date.parse(p.first_published_at || p.created_at) || 0,
+      ...(details ? { text: p.content_plain || htmlToText(p.content) } : {}),
+    }));
+  }
+  if (ats === 'rippling') {
+    const r = await fetch(`https://api.rippling.com/platform/api/ats/v1/board/${slug}/jobs`, { headers: UA });
+    if (!r.ok) throw new Error(`rippling ${slug} ${r.status}`);
+    const j = await r.json();
+    // One entry per (job, location): fold them into one posting.
+    const by = new Map();
+    for (const p of Array.isArray(j) ? j : []) {
+      const e = by.get(p.uuid) || { id: `rp:${slug}:${p.uuid}`, title: p.name, locs: [], dept: p.department?.label || '', url: p.url, postedAt: 0, ref: p.uuid };
+      if (p.workLocation?.label) e.locs.push(p.workLocation.label);
+      by.set(p.uuid, e);
+    }
+    return [...by.values()].map(({ locs, ...p }) => ({ ...p, location: locs.join('; '), remote: locs.some(l => /remote/i.test(l)) }));
+  }
+  if (ats === 'dover') {
+    // slug is "<company name>|<careers page id>"
+    const [name, page] = slug.split('|');
+    const r = await fetch(`https://app.dover.com/api/v1/careers-page/${page}/jobs`, { headers: UA });
+    if (!r.ok) throw new Error(`dover ${name} ${r.status}`);
+    const j = await r.json();
+    return (j.results || []).filter(p => p.is_published !== false && !p.is_sample).map(p => ({
+      id: `dv:${page}:${p.id}`, title: p.title,
+      location: (p.locations || []).map(l => (l.location_type === 'REMOTE' ? 'Remote - ' : '') + (l.name || l.location_option?.display_name || '')).join('; '),
+      dept: '', url: `https://jobs.dover.com/${encodeURIComponent(name)}/${p.id}`,
+      remote: p.workplace_type === 'REMOTE' || (p.locations || []).some(l => l.location_type === 'REMOTE'), postedAt: 0, ref: p.id,
+    }));
+  }
+  if (ats === 'comeet') {
+    // slug is "<company uid>|<public careers-page token>"
+    const [uid, token] = slug.split('|');
+    const r = await fetch(`https://www.comeet.co/careers-api/2.0/company/${uid}/positions?token=${token}`, { headers: UA });
+    if (!r.ok) throw new Error(`comeet ${uid} ${r.status}`);
+    const j = await r.json();
+    return (Array.isArray(j) ? j : []).map(p => {
+      const l = p.location || {};
+      const remote = /remote/i.test(p.workplace_type || '');
+      const where = [l.name, l.city, l.state, l.country].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(', ');
+      return {
+        id: `cm:${uid}:${p.uid}`, title: p.name, location: (remote ? 'Remote - ' : '') + where, dept: p.department || '',
+        url: p.url_comeet_hosted_page || p.url_active_page, remote: remote && /^(US|USA)$/i.test(l.country || ''),
+        postedAt: Date.parse(p.time_updated) || 0, ref: p.uid,
+      };
+    });
+  }
+  if (ats === 'workday') {
+    // slug is "<tenant>.<wdN>|<site>", e.g. "wisk.wd108|Wisk_Careers".
+    // The list gives title and a location summary ("7 Locations"); the
+    // full location and text come from one detail call per posting,
+    // made only for titles that pass `keep`.
+    const [host, site] = slug.split('|');
+    const tenant = host.split('.')[0];
+    const base = `https://${host}.myworkdayjobs.com/wday/cxs/${tenant}/${site}`;
+    const posts = [];
+    for (let offset = 0, total = Infinity; offset < total && offset < 200; offset += 20) {
+      const r = await fetch(`${base}/jobs`, { method: 'POST', headers: { ...UA, 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ appliedFacets: {}, limit: 20, offset, searchText: '' }) });
+      if (!r.ok) throw new Error(`workday ${tenant} ${r.status}`);
+      const j = await r.json();
+      if (offset === 0) total = j.total || 0;
+      const page = j.jobPostings || [];
+      posts.push(...page);
+      if (page.length < 20) break;
+    }
+    const out = [];
+    let detailsLeft = 8;                 // detail calls per board, per night
+    for (const p of posts) {
+      const url = `https://${host}.myworkdayjobs.com/${site}${p.externalPath}`;
+      const e = { id: `wd:${tenant}:${p.bulletFields?.[0] || p.externalPath}`, title: p.title, location: p.locationsText || '', dept: '',
+        url, remote: /remote/i.test(p.locationsText || ''), postedAt: 0 };
+      if (keep && keep(p.title) && detailsLeft-- > 0) {
+        const d = await fetch(`${base}${p.externalPath}`, { headers: { ...UA, Accept: 'application/json' } }).then(x => x.ok ? x.json() : null).catch(() => null);
+        const i = d?.jobPostingInfo;
+        if (i) {
+          const locs = [i.location, ...(i.additionalLocations || [])].filter(Boolean);
+          e.location = locs.join('; ');
+          e.remote = locs.some(l => /remote/i.test(l)) || /remote/i.test(i.remoteType || '');
+          e.postedAt = Date.parse(i.startDate) || 0;
+          if (details) e.text = htmlToText(i.jobDescription);
+        }
+      }
+      out.push(e);
+    }
+    return out;
+  }
   return [];
+}
+
+/* Boards that cost more than one request a night, or need a detail
+   call for posting text. The monitor checks these in their own slice. */
+export const HEAVY_ATS = new Set(['workday', 'gem', 'rippling', 'dover', 'comeet']);
+
+/** Posting text (and pay, when given) for boards whose list has none.
+    Job monitor only; one request. */
+export async function postingText(ats, slug, ref) {
+  if (ats === 'rippling') {
+    const r = await fetch(`https://api.rippling.com/platform/api/ats/v1/board/${slug}/jobs/${ref}`, { headers: UA });
+    if (!r.ok) return { text: '' };
+    const j = await r.json();
+    return { text: [j.description?.company, j.description?.role].map(htmlToText).filter(Boolean).join('\n\n') };
+  }
+  if (ats === 'dover') {
+    const r = await fetch(`https://app.dover.com/api/v1/inbound/application-portal-job/${ref}`, { headers: UA });
+    if (!r.ok) return { text: '' };
+    const j = await r.json();
+    const c = j.compensation;
+    return { text: htmlToText(j.user_provided_description), comp: c ? annual(c.lower_bound, c.upper_bound, c.currency_code, 'Base') : null };
+  }
+  if (ats === 'comeet') {
+    const [uid, token] = slug.split('|');
+    const r = await fetch(`https://www.comeet.co/careers-api/2.0/company/${uid}/positions/${ref}?token=${token}&details=true`, { headers: UA });
+    if (!r.ok) return { text: '' };
+    const j = await r.json();
+    return { text: (j.details || []).map(d => `${d.name}\n${htmlToText(d.value)}`).join('\n\n') };
+  }
+  return { text: '' };
 }
 
 /* ---------- posting details (job monitor only) ---------- */

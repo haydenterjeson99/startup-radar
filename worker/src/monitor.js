@@ -21,7 +21,7 @@
    ============================================================ */
 
 import { notion, queryAll, prop, put, textToBlocks, pageText } from './notion.js';
-import { fetchJobs, sniffAts, detectAts, htmlToText, annual } from './watchlist.js';
+import { fetchJobs, sniffAts, detectAts, htmlToText, annual, HEAVY_ATS, postingText } from './watchlist.js';
 import { ROLE_CORE, ROLE_EXCLUDE, classifyLocation } from './sources.js';
 
 const DAY = 24 * 3600 * 1000;
@@ -284,16 +284,23 @@ async function boardsFor(env, slice) {
                               AND status IN ('Watching','Match found') ORDER BY name`);
   const extra = (await all(env, `SELECT DISTINCT board FROM monitor_roles WHERE clipped=1 AND company_id IS NULL AND status='Open' AND board IS NOT NULL`))
     .map(r => ({ page_id: null, name: null, ats: r.board.split(':')[0], slug: r.board.split(':').slice(1).join(':'), clippedOnly: true }));
-  const list = [...cos, ...extra];
-  const boards = list.slice(slice * PER_CHECK, (slice + 1) * PER_CHECK);
-  boards.total = list.length;
+  // One-request boards fill slices 0–3 (A–D). Boards that page or need
+  // detail calls (Workday, Gem, Rippling, Dover, Comeet) get slice 4 (E)
+  // to themselves, so they can't push a slice past the request cap.
+  const light = [...cos.filter(c => !HEAVY_ATS.has(c.ats)), ...extra];
+  const heavy = cos.filter(c => HEAVY_ATS.has(c.ats)).slice(0, HEAVY_MAX);
+  const boards = slice < HEAVY_SLICE ? light.slice(slice * PER_CHECK, (slice + 1) * PER_CHECK) : slice === HEAVY_SLICE ? heavy : [];
+  boards.total = light.length;
+  boards.last = slice === HEAVY_SLICE;
   return boards;
 }
+const HEAVY_SLICE = 4;
+const HEAVY_MAX = 12;
 
 export async function checkBoards(env, boards, { dryRun = false } = {}) {
   const now = Date.now(), day = today();
   const out = { checked: 0, failed: [], matches: [], nearMisses: [], newRoles: 0, closed: 0 };
-  const results = await Promise.allSettled(boards.map(b => fetchJobs(b.ats, b.slug, { details: true })));
+  const results = await Promise.allSettled(boards.map(b => fetchJobs(b.ats, b.slug, { details: true, keep: titlePasses })));
   const stmts = [];
   // One read of the (small) roles table instead of queries per board:
   // the free plan also caps D1 queries per invocation.
@@ -346,6 +353,7 @@ export async function checkBoards(env, boards, { dryRun = false } = {}) {
           comp: p.comp || null, text: (p.text || '').slice(0, 60000),
           ghPay: b.ats === 'greenhouse' && p.postingId ? { slug: b.slug, id: p.postingId } : null,
           workable: b.ats === 'workable' ? { slug: b.slug, code: (p.id || '').split(':').pop() } : null,
+          detail: !p.text && p.ref ? { ats: b.ats, slug: b.slug, ref: p.ref } : null,
         }));
         out.newRoles++;
       } else {
@@ -381,9 +389,8 @@ export async function checkBoards(env, boards, { dryRun = false } = {}) {
 export async function stageCheck(env, slice) {
   const boards = await boardsFor(env, slice);
   const r = await checkBoards(env, boards);
-  // After the last slice that has boards, queue each company's nightly summary.
-  const total = boards.total;
-  if ((slice + 1) * PER_CHECK >= total && (slice * PER_CHECK < total || slice === 0)) await queueCompanyRollups(env);
+  // After the last slice (E, the heavy boards), queue each company's nightly summary.
+  if (boards.last) await queueCompanyRollups(env);
   return { slice, boards: boards.length, checked: r.checked, newRoles: r.newRoles, closed: r.closed, matches: r.matches.length, failed: r.failed };
 }
 
@@ -465,6 +472,11 @@ export async function stageWrite(env, { max = 40 } = {}) {
         let comp = p.comp, text = p.text;
         if (!comp && p.ghPay) { budget.left--; comp = await greenhousePay(p.ghPay.slug, p.ghPay.id).catch(() => null); }
         if (!text && p.workable) { budget.left--; text = await workableText(p.workable.slug, p.workable.code).catch(() => ''); }
+        if (!text && p.detail) {
+          budget.left--;
+          const d = await postingText(p.detail.ats, p.detail.slug, p.detail.ref).catch(() => ({ text: '' }));
+          text = d.text; if (!comp && d.comp) comp = d.comp;
+        }
         const props = {
           Name: put.title(p.name), URL: put.url(p.url), 'New Role Date': put.date(p.firstSeen),
           Level: put.select(p.level), 'Work Location': put.select(p.workLoc), 'Role Status': put.select('Open'),
