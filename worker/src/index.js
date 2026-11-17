@@ -478,14 +478,14 @@ export default {
 
         case '/api/status': {
           // Run status for the morning digest: each cloud routine POSTs one
-          // line per run; GET returns those plus every worker stage. Both need
-          // the STATUS_KEY secret (X-Status-Key), which only the routines hold.
-          if (!env.STATUS_KEY || req.headers.get('X-Status-Key') !== env.STATUS_KEY) return json({ error: 'needs X-Status-Key' }, 401);
+          // line per run (counts only, no company or role names); GET returns
+          // those plus every worker stage. No secret: the data is not private,
+          // only known routine names are accepted, and summaries are capped.
           if (req.method === 'POST') {
             const b = await req.json().catch(() => ({}));
             const name = String(b.routine || '').trim();
             if (!ROUTINES.has(name)) return json({ error: `routine must be one of ${[...ROUTINES].join(', ')}` }, 400);
-            await setMeta(env, `routine:${name}`, { ok: b.ok !== false, summary: String(b.summary || '').slice(0, 300), at: Date.now() });
+            await setMeta(env, `routine:${name}`, { ok: b.ok !== false, summary: String(b.summary || '').slice(0, 200), at: Date.now() });
             return json({ ok: true });
           }
           const rows = (await env.DB.prepare(`SELECT key, value FROM meta WHERE key LIKE 'routine:%' OR key LIKE 'stage:%' OR key LIKE 'monitor:monitor%'`).all()).results;
@@ -493,9 +493,10 @@ export default {
           for (const r of rows) {
             let v; try { v = JSON.parse(r.value); } catch { continue; }
             if (r.key.startsWith('routine:')) { out.routines[r.key.slice(8)] = v; continue; }
-            const failedSources = Array.isArray(v.report) ? v.report.filter(x => x.ok === false).map(x => x.label || x.id || x.source) : undefined;
-            const { report, ...rest } = v;
-            out.stages[r.key.replace(/^stage:|^monitor:/, '')] = { ...rest, failed: Array.isArray(v.failed) ? v.failed : failedSources };
+            const name = r.key.replace(/^stage:|^monitor:/, '');
+            const failed = Array.isArray(v.failed) ? v.failed.length : Array.isArray(v.report) ? v.report.filter(x => x.ok === false).length : 0;
+            out.stages[name] = { ok: v.ok !== false, at: v.at, error: v.error, failed,
+              newRoles: v.newRoles, closed: v.closed, boards: v.boards, written: v.written, queueLeft: v.queueLeft, stored: v.stored };
           }
           return json(out, 200, { 'Cache-Control': 'no-store' });
         }
