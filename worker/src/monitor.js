@@ -53,6 +53,7 @@ export function levelOf(title) {
   if (/\b(head of|director|vp|vice president|chief|svp|evp|cro)\b/i.test(t)) return 'Head or Director';
   if (/\b(senior|sr\.?)\s*(\/\s*)?(staff\s+)?manager\b|\bmanager\s*,?\s*senior\b|\bsenior manager\b/i.test(t)) return 'Senior Manager';
   if (/\bmanager\b/i.test(t)) return 'Manager';
+  if (/\b(analyst|specialist|associate|administrator|admin)\b/i.test(t)) return 'Analyst or Specialist';
   return 'Other';
 }
 
@@ -69,7 +70,9 @@ export function judge(p) {
   // New York and never says "remote", it is a New York role.
   const saysRemote = /remote|anywhere/i.test(p.location || '');
   const workLoc = loc.bay ? 'Bay Area' : (nyc && !saysRemote) ? 'New York' : loc.remote ? 'Remote' : nyc ? 'New York' : null;
-  const lOk = workLoc === 'Bay Area' || workLoc === 'Remote' || (workLoc === 'New York' && (level === 'Manager' || level === 'Senior Manager'));
+  // New York roles at any level below Head pass here; fit scoring keeps
+  // them only when they score Perfect (Hayden, 2026-11-17).
+  const lOk = workLoc === 'Bay Area' || workLoc === 'Remote' || (workLoc === 'New York' && level !== 'Head or Director');
   let why = null;
   if (tOk && !lOk) why = workLoc === 'New York' ? `New York but level is ${level}` : `location: ${p.location || 'none'}`;
   else if (!tOk && (ROLE_CORE.test(title) || ROLE_EXTRA.test(title))) why = 'title excluded (engineering, product or ROLE_EXCLUDE)';

@@ -129,7 +129,7 @@ export function isNoise(a) {
 /* ---------- jobs ---------- */
 
 /* GTM roles, with RevOps called out as the core target. */
-export const ROLE_CORE = /\b(rev(enue)?[ -]?ops|revenue operations|sales operations|sales ops|gtm operations|go[- ]to[- ]market operations|business operations|bizops|deal desk|sales strategy|salesforce (admin|administrator|architect|developer)|crm (manager|admin|administrator|lead|analyst)|commercial operations|sales enablement|gtm (systems|analyst|strategy))\b/i;
+export const ROLE_CORE = /\b(rev(enue)?[ -]?ops|revenue operations|sales operations|sales ops|gtm operations|go[- ]to[- ]market operations|business operations|bizops|deal desk|sales strategy|salesforce (admin|administrator|architect|developer)|crm (manager|admin|administrator|lead|analyst|specialist|associate)|commercial operations|sales enablement|gtm (systems|analyst|strategy|associate|specialist)|revenue analyst|sales analyst)\b/i;
 /* GTM operating roles beyond ROLE_CORE: strategy, systems, planning,
    analytics and ops for the revenue org, plus bare "GTM" titles.
    Quota-carrying and customer-facing roles are not included. */
@@ -146,7 +146,8 @@ export const ROLE_NON_GTM = /\b(supply chain|manufacturing|product manager|progr
 
 /* Titles that match the GTM words but aren't GTM jobs, plus
    internships (not useful for a lateral move). */
-export const ROLE_EXCLUDE = /\b(intern|internship|co-?op|accounting|accountant|fp&a|counsel|legal|paralegal|tax|payroll|recruit(er|ing)|talent|people partner|hr\b)\b/i;
+/* Hayden, 2026-11-17: "I never want a coordinator role. Never ever". */
+export const ROLE_EXCLUDE = /\b(intern|internship|co-?op|coordinator|accounting|accountant|fp&a|counsel|legal|paralegal|tax|payroll|recruit(er|ing)|talent|people partner|hr\b)\b/i;
 
 const US_STATE_NAMES = /\b(alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|new mexico|new york|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington|west virginia|wisconsin|wyoming|district of columbia)\b/i;
 const US_STATE_CODES = /\b(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b/;

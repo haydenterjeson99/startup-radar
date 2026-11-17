@@ -163,6 +163,7 @@ Secrets: `NOTION_TOKEN` (Notion connection) and `JOB_DS_ID` (data source).
 | `GET/POST/DELETE /api/watchlist` | watchlist (writes need `X-Radar-Key`) |
 | `GET /api/refresh?stage=feedsA\|feedsB\|jobs\|events\|yc\|brief` | run a stage now (needs `X-Radar-Key`) |
 | `GET /api/monitor?action=status\|companies\|roles\|queue\|dryrun\|stage` | private job monitor (needs `X-Radar-Key`) |
+| `GET/POST /api/status` | run status of the job-search cloud routines plus every stage, read by the morning digest (needs `X-Status-Key`) |
 | `GET /?url=…` | CORS proxy for the reader |
 | `GET /health` | liveness |
 
@@ -174,6 +175,7 @@ npx wrangler d1 execute startup-intel --remote --file=schema.sql   # additive, s
 npx wrangler secret put RADAR_KEY                                   # once
 npx wrangler secret put NOTION_TOKEN                                # once, job monitor
 npx wrangler secret put JOB_DS_ID                                   # once, job monitor
+npx wrangler secret put STATUS_KEY                                  # once, routine status for the morning digest
 npx wrangler deploy
 ```
 

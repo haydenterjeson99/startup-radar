@@ -16,6 +16,7 @@ import { SOURCES_A, SOURCES_B, SECTORS, FUNDING, BAY_AREA, isNoise,
 import { fetchJobs } from './watchlist.js';
 
 const UA = { 'User-Agent': 'Mozilla/5.0 (compatible; startup-radar/2.0; +https://haydenterjeson99.github.io/startup-radar/)' };
+const BROWSER_UA = { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36', 'Accept': 'application/rss+xml, application/xml;q=0.9, */*;q=0.8' };
 const DAY = 24 * 3600 * 1000;
 
 /* ---------- ids: identical to the original front end, so
@@ -78,7 +79,15 @@ async function pullSources(env, sources) {
   const report = [];
   const rows = [];
   const results = await Promise.allSettled(sources.map(async src => {
-    const res = await fetch(sourceUrl(src), { headers: UA, cf: { cacheTtl: 300 } });
+    let res = await fetch(sourceUrl(src), { headers: UA, cf: { cacheTtl: 300 } });
+    // Some publishers' firewalls refuse the bot user agent from Cloudflare (GeoConnexion: 403).
+    if (res.status === 403 && !src.kind) res = await fetch(src.url, { headers: BROWSER_UA, cf: { cacheTtl: 300 } });
+    // Google News rate-limits bursts from Workers with 503; run the same query on Bing instead.
+    if (!res.ok && src.kind === 'google') {
+      const alt = { ...src, kind: 'bing' };
+      res = await fetch(sourceUrl(alt), { headers: UA, cf: { cacheTtl: 300 } });
+      if (res.ok) return parseFeed(await res.text(), alt);
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return parseFeed(await res.text(), src);
   }));
