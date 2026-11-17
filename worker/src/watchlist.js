@@ -338,11 +338,13 @@ function ashbyComp(c) {
 const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** Build one matcher per company. Case-sensitive on purpose:
-    "Planet Labs" is a company, "planet" is not. */
+    "Planet Labs" is a company, "planet" is not.
+    A name glued to a word by a hyphen before it is a different name:
+    "C-SPAN" is not SPAN. A hyphen after it still counts ("SPAN-backed"). */
 export function mentionMatchers(list) {
   return list.map(w => {
     const aliases = (w.aliases && w.aliases.length ? w.aliases : [w.name]).filter(a => a && a.length >= 3);
     return { id: w.id, needsContext: !!w.needsContext,
-      re: new RegExp(`(^|[^A-Za-z0-9])(${aliases.map(esc).join('|')})(?![A-Za-z0-9])`) };
+      re: new RegExp(`(?<![A-Za-z0-9])(?<![A-Za-z0-9]-)(${aliases.map(esc).join('|')})(?![A-Za-z0-9])`) };
   });
 }
