@@ -126,6 +126,11 @@ matching roles to it. It shares the worker and the board readers
   fails 3 nights running is switched to a manual check.
 - A separate scheduled Claude task scores fit in Notion; the worker never
   writes those fields.
+- **Sector.** Hayden sets Sector (Geospatial or Hard tech) on company rows.
+  The nightly sync copies it to that company's role rows (by company_id, else
+  the name after " @ "), and new roles get it when created. A blank company
+  Sector never clears a role's. The Notion view "Geospatial & Hard Tech"
+  shows open, non-Skip roles with a Sector.
 - **Manual run.** To run the whole nightly pipeline now, set a D1 flag:
   `npx wrangler d1 execute startup-intel --remote --command "INSERT INTO meta (key,value) VALUES ('monitor:manual','{\"step\":0}') ON CONFLICT(key) DO UPDATE SET value=excluded.value"`.
   The two-minute cron then runs sync, checkA-E and the Notion writes, one
