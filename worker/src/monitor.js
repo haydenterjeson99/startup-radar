@@ -139,6 +139,7 @@ export async function readJobDb(env, budget) {
       monitorStatus: prop.select(p['Monitor Status']),
       roleStatus: prop.select(p['Role Status']),
       fit: prop.select(p.Fit),
+      sector: prop.select(p.Sector),
       newRoleDate: prop.date(p['New Role Date']),
       company: prop.formula(p.Company),
       newJob: prop.formula(p['New Job']),
@@ -234,6 +235,20 @@ export async function stageSync(env) {
   // Clipped rows: attach to a monitored company when the board matches.
   stmts.push(env.DB.prepare(`UPDATE monitor_roles SET company_id = (SELECT page_id FROM monitor_companies c WHERE c.ats || ':' || c.slug = monitor_roles.board)
                              WHERE clipped = 1 AND company_id IS NULL AND board IS NOT NULL`));
+
+  // Sector (Geospatial / Hard tech) is set by hand on company rows and
+  // copied to that company's role rows. Roles match their company by
+  // company_id, else by the name after " @ ". A blank company Sector
+  // never clears a role's, so roles tagged by hand keep their tag.
+  const sectorById = {}, sectorByName = {};
+  for (const c of companies) if (c.sector) { sectorById[c.pageId] = c.sector; sectorByName[c.name.toLowerCase()] = c.sector; }
+  stmts.push(env.DB.prepare(`INSERT INTO meta (key,value) VALUES ('sectors',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`).bind(JSON.stringify(sectorById)));
+  const companyOf = Object.fromEntries((await all(env, 'SELECT page_id, company_id FROM monitor_roles WHERE page_id IS NOT NULL')).map(m => [m.page_id, m.company_id]));
+  report.sectorTagged = 0;
+  for (const r of roles) {
+    const want = sectorById[companyOf[r.pageId]] || sectorByName[(r.name.split(' @ ').pop() || '').trim().toLowerCase()] || null;
+    if (want && want !== r.sector) { stmts.push(...enqueue(env, 'sector', r.pageId, { Sector: want })); report.sectorTagged++; }
+  }
   await batch(env, stmts);
 
   // Approved suggestions join the Radar watchlist, so their news and
@@ -352,7 +367,7 @@ export async function checkBoards(env, boards, { dryRun = false } = {}) {
           `INSERT INTO monitor_roles (key,company_id,board,title,url,level,work_loc,status,clipped,first_seen,last_seen) VALUES (?,?,?,?,?,?,?,'Open',0,?,?)`
         ).bind(key, b.page_id, board, p.title.trim(), url, j.level, j.workLoc, day, now));
         stmts.push(...enqueue(env, 'create', key, {
-          name: `${p.title.trim()} @ ${b.name}`, url, level: j.level, workLoc: j.workLoc, firstSeen: day,
+          name: `${p.title.trim()} @ ${b.name}`, url, level: j.level, workLoc: j.workLoc, firstSeen: day, companyId: b.page_id,
           comp: p.comp || null, text: (p.text || '').slice(0, 60000),
           ghPay: b.ats === 'greenhouse' && p.postingId ? { slug: b.slug, id: p.postingId } : null,
           workable: b.ats === 'workable' ? { slug: b.slug, code: (p.id || '').split(':').pop() } : null,
@@ -433,6 +448,7 @@ function propsFor(p) {
   if ('Last Checked' in p) out['Last Checked'] = put.date(p['Last Checked']);
   if ('New Role Date' in p) out['New Role Date'] = put.date(p['New Role Date']);
   if ('URL' in p) out.URL = put.url(p.URL);
+  if ('Sector' in p) out.Sector = put.select(p.Sector);
   return out;
 }
 
@@ -458,6 +474,7 @@ export async function stageWrite(env, { max = 40 } = {}) {
   // Preload role rows once; D1 writes are collected and flushed in
   // batches (the free plan caps D1 queries per invocation too).
   const roles = Object.fromEntries((await all(env, 'SELECT key, page_id, gone FROM monitor_roles')).map(r => [r.key, r]));
+  const sectors = JSON.parse((await env.DB.prepare(`SELECT value FROM meta WHERE key='sectors'`).first())?.value || '{}');
   const done = [], failed = [];
   let stmts = [];
   const flush = async () => {
@@ -484,6 +501,7 @@ export async function stageWrite(env, { max = 40 } = {}) {
           Name: put.title(p.name), URL: put.url(p.url), 'New Role Date': put.date(p.firstSeen),
           Level: put.select(p.level), 'Work Location': put.select(p.workLoc), 'Role Status': put.select('Open'),
         };
+        if (sectors[p.companyId]) props.Sector = put.select(sectors[p.companyId]);
         if (comp) { props['Comp Min'] = put.number(comp.min); props['Comp Max'] = put.number(comp.max); props['Comp Basis'] = put.select(comp.basis); }
         const blocks = textToBlocks(text || 'Posting text was not available from the job board.');
         const page = await notion(env, 'POST', '/pages', {
@@ -496,6 +514,8 @@ export async function stageWrite(env, { max = 40 } = {}) {
       } else if (it.kind === 'role') {
         if (!role?.page_id || role.gone) { done.push(it.id); continue; }
         await notion(env, 'PATCH', `/pages/${role.page_id}`, { properties: propsFor(p) }, budget);
+      } else if (it.kind === 'sector') {             // ref is the role's Notion page id
+        await notion(env, 'PATCH', `/pages/${it.ref}`, { properties: propsFor(p) }, budget);
       } else if (it.kind === 'company') {
         await notion(env, 'PATCH', `/pages/${it.ref}`, { properties: propsFor(p) }, budget);
         if (p.URL) stmts.push(env.DB.prepare('UPDATE monitor_companies SET notion_url=? WHERE page_id=?').bind(p.URL, it.ref));
