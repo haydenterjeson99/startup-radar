@@ -36,9 +36,11 @@ const slug = s => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^
    Filters
    ============================================================ */
 
-/* ROLE_CORE plus the extra target titles. The broad ROLE_GTM list
+/* ROLE_CORE plus the extra target titles. RFP, proposal and bid
+   titles added 2026-11-25 after Hayden called the Sierra RFP Strategy &
+   Operations Analyst role a great fit. The broad ROLE_GTM list
    (sales, AE, CS…) is deliberately not used. */
-export const ROLE_EXTRA = /\b(strategy\s*(&|and)\s*operations|revenue strategy|revenue systems|business systems|sales systems|gtm engineer(ing)?|go[- ]to[- ]market engineer(ing)?)\b/i;
+export const ROLE_EXTRA = /\b(strategy\s*(&|and)\s*operations|revenue strategy|revenue systems|business systems|sales systems|gtm engineer(ing)?|go[- ]to[- ]market engineer(ing)?|rf[pix]s?|rfp response|proposals? (manager|management|operations|ops|analyst|specialist|strategist|strategy|lead|desk)|bids? (and|&) proposals?|bid (manager|management|desk|operations|strategy))\b/i;
 /* Engineering, product and workplace roles that ride in on "GTM systems"
    or "business operations". GTM engineer titles are always kept. */
 export const ROLE_EXCLUDE_MONITOR = /\b((software|data|devops|agentops|analytics|ml|machine learning|security|infrastructure|platform|backend|front[- ]?end|full[- ]?stack|site reliability) engineer(ing)?|product manager|workplace)\b/i;
